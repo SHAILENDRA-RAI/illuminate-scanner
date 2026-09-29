@@ -25,81 +25,94 @@ function App() {
   useEffect(() => {
     let mounted = true;
     let scanner = null;
-    let permissionStream = null;
 
-    async function startScanner() {
+    async function startCamera() {
       try {
         if (!window.isSecureContext) {
           throw new Error(
-            'Camera requires HTTPS.'
-          );
-        }
-
-        if (
-          !navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia
-        ) {
-          throw new Error(
-            'This browser does not support camera access.'
+            'Camera requires a secure HTTPS connection.'
           );
         }
 
         setStatus('starting');
 
         /*
-         * Explicitly request camera permission first.
+         * Ask the browser for camera access.
+         * This also allows us to discover the actual
+         * camera devices available on the phone.
          */
-        permissionStream =
-          await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: {
-                ideal: 'environment',
-              },
-            },
-            audio: false,
-          });
+        const cameras =
+          await Html5Qrcode.getCameras();
+
+        if (!cameras || cameras.length === 0) {
+          throw new Error(
+            'No camera was found on this device.'
+          );
+        }
+
+        console.log(
+          'Available cameras:',
+          cameras
+        );
 
         /*
-         * We only needed this stream to trigger
-         * permission and verify camera access.
-         * html5-qrcode will create its own stream.
+         * Prefer the rear/environment camera.
          */
-        permissionStream
-          .getTracks()
-          .forEach((track) => track.stop());
+        let selectedCamera = cameras.find(
+          (camera) => {
+            const label =
+              camera.label.toLowerCase();
 
-        permissionStream = null;
+            return (
+              label.includes('back') ||
+              label.includes('rear') ||
+              label.includes('environment') ||
+              label.includes('main')
+            );
+          }
+        );
+
+        /*
+         * If the browser does not expose camera
+         * names, use the last camera as fallback.
+         */
+        if (!selectedCamera) {
+          selectedCamera =
+            cameras[cameras.length - 1];
+        }
+
+        console.log(
+          'Selected camera:',
+          selectedCamera
+        );
 
         if (!mounted) {
           return;
         }
 
-        scanner = new Html5Qrcode('reader');
+        scanner =
+          new Html5Qrcode('reader');
 
         scannerRef.current = scanner;
 
         await scanner.start(
-          {
-            facingMode: {
-              ideal: 'environment',
-            },
-          },
+          selectedCamera.id,
           {
             fps: 15,
 
             qrbox: function (
-              viewfinderWidth,
-              viewfinderHeight
+              width,
+              height
             ) {
               const size =
-                Math.min(
-                  viewfinderWidth,
-                  viewfinderHeight
-                ) * 0.72;
+                Math.floor(
+                  Math.min(width, height) *
+                    0.72
+                );
 
               return {
-                width: Math.floor(size),
-                height: Math.floor(size),
+                width: size,
+                height: size,
               };
             },
 
@@ -125,12 +138,6 @@ function App() {
           error
         );
 
-        if (permissionStream) {
-          permissionStream
-            .getTracks()
-            .forEach((track) => track.stop());
-        }
-
         if (!mounted) {
           return;
         }
@@ -138,30 +145,30 @@ function App() {
         setStatus('camera-error');
 
         let message =
-          'Unable to access the camera.';
+          'Unable to start the camera.';
 
         if (
           error?.name ===
           'NotAllowedError'
         ) {
           message =
-            'Camera permission was denied. Allow camera access and reload.';
-        }
-
-        if (
+            'Camera permission was denied. Allow camera access in browser settings.';
+        } else if (
           error?.name ===
           'NotFoundError'
         ) {
           message =
-            'No camera was found on this device.';
-        }
-
-        if (
+            'No camera was found.';
+        } else if (
           error?.name ===
           'NotReadableError'
         ) {
           message =
-            'Camera is being used by another application.';
+            'Camera is already being used by another application.';
+        } else if (
+          error?.message
+        ) {
+          message = error.message;
         }
 
         setResult({
@@ -171,16 +178,10 @@ function App() {
       }
     }
 
-    startScanner();
+    startCamera();
 
     return () => {
       mounted = false;
-
-      if (permissionStream) {
-        permissionStream
-          .getTracks()
-          .forEach((track) => track.stop());
-      }
 
       if (scanner) {
         scanner
@@ -257,11 +258,8 @@ function App() {
           </div>
 
           <div className="online-badge">
-
             <ShieldCheck size={15} />
-
             SCANNER ONLINE
-
           </div>
 
         </header>
@@ -315,15 +313,13 @@ function App() {
               />
 
               <div>
-
                 <b>
                   STARTING CAMERA
                 </b>
 
                 <span>
-                  Requesting camera access...
+                  Accessing device camera...
                 </span>
-
               </div>
             </>
           )}
@@ -333,7 +329,6 @@ function App() {
               <TicketCheck size={22} />
 
               <div>
-
                 <b>
                   READY TO SCAN
                 </b>
@@ -341,7 +336,6 @@ function App() {
                 <span>
                   Point the camera at an attendee QR
                 </span>
-
               </div>
             </>
           )}
@@ -354,36 +348,33 @@ function App() {
               />
 
               <div>
-
                 <b>
                   QR DETECTED
                 </b>
 
                 <span>
-                  Processing ticket...
+                  Reading ticket...
                 </span>
-
               </div>
             </>
           )}
 
-          {status === 'camera-error' && result && (
-            <>
-              <XCircle size={24} />
+          {status === 'camera-error' &&
+            result && (
+              <>
+                <XCircle size={24} />
 
-              <div>
+                <div>
+                  <b>
+                    {result.message}
+                  </b>
 
-                <b>
-                  {result.message}
-                </b>
-
-                <span>
-                  {result.detail}
-                </span>
-
-              </div>
-            </>
-          )}
+                  <span>
+                    {result.detail}
+                  </span>
+                </div>
+              </>
+            )}
 
           {result &&
             status !== 'idle' &&
@@ -398,7 +389,6 @@ function App() {
                 )}
 
                 <div>
-
                   <b>
                     {result.message}
                   </b>
@@ -406,7 +396,6 @@ function App() {
                   <span>
                     {result.detail}
                   </span>
-
                 </div>
               </>
             )}
@@ -433,13 +422,10 @@ function App() {
 
 
 /*
- * TEMPORARY VERIFICATION
+ * TEMPORARY QR TEST
  *
- * This only tests QR detection.
- *
- * We will replace this function with the
- * existing ILLUMINATE Apps Script check-in
- * backend after camera scanning is confirmed.
+ * We will replace this with the real
+ * Apps Script check-in API next.
  */
 
 async function verifyTicket(decodedText) {
@@ -453,14 +439,12 @@ async function verifyTicket(decodedText) {
       url.searchParams.get('t');
 
     if (!token) {
-
       return {
         status: 'invalid',
         message: 'INVALID QR',
         detail:
           'No ticket token found.',
       };
-
     }
 
     return {
