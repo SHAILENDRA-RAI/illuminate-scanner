@@ -19,18 +19,65 @@ function App() {
   const scannerRef = useRef(null);
   const processingRef = useRef(false);
 
-  const [status, setStatus] = useState('idle');
+  const [status, setStatus] = useState('starting');
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    const scanner = new Html5Qrcode('reader', {
-      verbose: false,
-    });
-
-    scannerRef.current = scanner;
+    let mounted = true;
+    let scanner = null;
+    let permissionStream = null;
 
     async function startScanner() {
       try {
+        if (!window.isSecureContext) {
+          throw new Error(
+            'Camera requires HTTPS.'
+          );
+        }
+
+        if (
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
+        ) {
+          throw new Error(
+            'This browser does not support camera access.'
+          );
+        }
+
+        setStatus('starting');
+
+        /*
+         * Explicitly request camera permission first.
+         */
+        permissionStream =
+          await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: {
+                ideal: 'environment',
+              },
+            },
+            audio: false,
+          });
+
+        /*
+         * We only needed this stream to trigger
+         * permission and verify camera access.
+         * html5-qrcode will create its own stream.
+         */
+        permissionStream
+          .getTracks()
+          .forEach((track) => track.stop());
+
+        permissionStream = null;
+
+        if (!mounted) {
+          return;
+        }
+
+        scanner = new Html5Qrcode('reader');
+
+        scannerRef.current = scanner;
+
         await scanner.start(
           {
             facingMode: {
@@ -40,11 +87,15 @@ function App() {
           {
             fps: 15,
 
-            qrbox: function (viewfinderWidth, viewfinderHeight) {
-              const size = Math.min(
-                viewfinderWidth,
-                viewfinderHeight
-              ) * 0.72;
+            qrbox: function (
+              viewfinderWidth,
+              viewfinderHeight
+            ) {
+              const size =
+                Math.min(
+                  viewfinderWidth,
+                  viewfinderHeight
+                ) * 0.72;
 
               return {
                 width: Math.floor(size),
@@ -58,25 +109,64 @@ function App() {
               Html5QrcodeSupportedFormats.QR_CODE,
             ],
 
-            rememberLastUsedCamera: true,
-
             disableFlip: false,
           },
           handleScan,
           () => {}
         );
 
-        console.log('ILLUMINATE scanner started');
+        if (mounted) {
+          setStatus('idle');
+        }
+
       } catch (error) {
-        console.error('Camera error:', error);
+        console.error(
+          'ILLUMINATE CAMERA ERROR:',
+          error
+        );
+
+        if (permissionStream) {
+          permissionStream
+            .getTracks()
+            .forEach((track) => track.stop());
+        }
+
+        if (!mounted) {
+          return;
+        }
 
         setStatus('camera-error');
 
+        let message =
+          'Unable to access the camera.';
+
+        if (
+          error?.name ===
+          'NotAllowedError'
+        ) {
+          message =
+            'Camera permission was denied. Allow camera access and reload.';
+        }
+
+        if (
+          error?.name ===
+          'NotFoundError'
+        ) {
+          message =
+            'No camera was found on this device.';
+        }
+
+        if (
+          error?.name ===
+          'NotReadableError'
+        ) {
+          message =
+            'Camera is being used by another application.';
+        }
+
         setResult({
           message: 'CAMERA ERROR',
-          detail:
-            error?.message ||
-            'Allow camera permission and reload.',
+          detail: message,
         });
       }
     }
@@ -84,13 +174,21 @@ function App() {
     startScanner();
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current
+      mounted = false;
+
+      if (permissionStream) {
+        permissionStream
+          .getTracks()
+          .forEach((track) => track.stop());
+      }
+
+      if (scanner) {
+        scanner
           .stop()
           .catch(() => {})
           .finally(() => {
-            scannerRef.current
-              ?.clear()
+            scanner
+              .clear()
               .catch(() => {});
           });
       }
@@ -106,7 +204,10 @@ function App() {
       return;
     }
 
-    console.log('QR DETECTED:', decodedText);
+    console.log(
+      'ILLUMINATE QR DETECTED:',
+      decodedText
+    );
 
     processingRef.current = true;
 
@@ -114,10 +215,11 @@ function App() {
 
     setResult({
       message: 'QR DETECTED',
-      detail: 'Ticket QR successfully scanned.',
+      detail: 'Reading ticket...',
     });
 
-    const response = await verifyTicket(decodedText);
+    const response =
+      await verifyTicket(decodedText);
 
     setResult(response);
     setStatus(response.status);
@@ -140,6 +242,7 @@ function App() {
         <header className="topbar">
 
           <div>
+
             <div className="eyebrow">
               <span className="live-dot" />
               EVENT OPERATIONS
@@ -147,19 +250,32 @@ function App() {
 
             <h1>ILLUMINATE</h1>
 
-            <p>2026 · STAFF SCANNER</p>
+            <p>
+              2026 · STAFF SCANNER
+            </p>
+
           </div>
 
           <div className="online-badge">
+
             <ShieldCheck size={15} />
+
             SCANNER ONLINE
+
           </div>
 
         </header>
 
         <div className="headline">
-          <span>Fast entry.</span>
-          <strong>Zero friction.</strong>
+
+          <span>
+            Fast entry.
+          </span>
+
+          <strong>
+            Zero friction.
+          </strong>
+
         </div>
 
         <div className="reader-frame">
@@ -175,8 +291,11 @@ function App() {
 
             {status === 'idle' && (
               <div className="scan-hint">
+
                 <Camera size={16} />
+
                 Align ticket QR inside the frame
+
               </div>
             )}
 
@@ -184,18 +303,45 @@ function App() {
 
         </div>
 
-        <div className={`status-panel ${status}`}>
+        <div
+          className={`status-panel ${status}`}
+        >
+
+          {status === 'starting' && (
+            <>
+              <ShieldCheck
+                size={22}
+                className="spin"
+              />
+
+              <div>
+
+                <b>
+                  STARTING CAMERA
+                </b>
+
+                <span>
+                  Requesting camera access...
+                </span>
+
+              </div>
+            </>
+          )}
 
           {status === 'idle' && (
             <>
               <TicketCheck size={22} />
 
               <div>
-                <b>READY TO SCAN</b>
+
+                <b>
+                  READY TO SCAN
+                </b>
 
                 <span>
                   Point the camera at an attendee QR
                 </span>
+
               </div>
             </>
           )}
@@ -208,18 +354,42 @@ function App() {
               />
 
               <div>
-                <b>QR DETECTED</b>
+
+                <b>
+                  QR DETECTED
+                </b>
 
                 <span>
-                  Processing ticket…
+                  Processing ticket...
                 </span>
+
+              </div>
+            </>
+          )}
+
+          {status === 'camera-error' && result && (
+            <>
+              <XCircle size={24} />
+
+              <div>
+
+                <b>
+                  {result.message}
+                </b>
+
+                <span>
+                  {result.detail}
+                </span>
+
               </div>
             </>
           )}
 
           {result &&
             status !== 'idle' &&
-            status !== 'checking' && (
+            status !== 'starting' &&
+            status !== 'checking' &&
+            status !== 'camera-error' && (
               <>
                 {status === 'approved' ? (
                   <CheckCircle2 size={24} />
@@ -228,11 +398,15 @@ function App() {
                 )}
 
                 <div>
-                  <b>{result.message}</b>
+
+                  <b>
+                    {result.message}
+                  </b>
 
                   <span>
                     {result.detail}
                   </span>
+
                 </div>
               </>
             )}
@@ -240,8 +414,15 @@ function App() {
         </div>
 
         <footer>
-          <span>SECURE VERIFICATION</span>
-          <span>ILLUMINATE 2026</span>
+
+          <span>
+            SECURE VERIFICATION
+          </span>
+
+          <span>
+            ILLUMINATE 2026
+          </span>
+
         </footer>
 
       </section>
@@ -252,19 +433,21 @@ function App() {
 
 
 /*
-  TEMPORARY QR VERIFICATION
-
-  This currently tests whether the QR is
-  actually being detected.
-
-  Backend/check-in connection comes next.
-*/
+ * TEMPORARY VERIFICATION
+ *
+ * This only tests QR detection.
+ *
+ * We will replace this function with the
+ * existing ILLUMINATE Apps Script check-in
+ * backend after camera scanning is confirmed.
+ */
 
 async function verifyTicket(decodedText) {
 
   try {
 
-    const url = new URL(decodedText);
+    const url =
+      new URL(decodedText);
 
     const token =
       url.searchParams.get('t');
@@ -274,7 +457,8 @@ async function verifyTicket(decodedText) {
       return {
         status: 'invalid',
         message: 'INVALID QR',
-        detail: 'No ticket token found.',
+        detail:
+          'No ticket token found.',
       };
 
     }
