@@ -8,7 +8,10 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import { Html5Qrcode } from 'html5-qrcode';
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+} from 'html5-qrcode';
 
 const RESULT_RESET_MS = 2600;
 
@@ -20,7 +23,9 @@ function App() {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    const scanner = new Html5Qrcode('reader');
+    const scanner = new Html5Qrcode('reader', {
+      verbose: false,
+    });
 
     scannerRef.current = scanner;
 
@@ -28,20 +33,42 @@ function App() {
       try {
         await scanner.start(
           {
-            facingMode: 'environment',
+            facingMode: {
+              ideal: 'environment',
+            },
           },
           {
-            fps: 12,
-            qrbox: {
-              width: 260,
-              height: 260,
+            fps: 15,
+
+            qrbox: function (viewfinderWidth, viewfinderHeight) {
+              const size = Math.min(
+                viewfinderWidth,
+                viewfinderHeight
+              ) * 0.72;
+
+              return {
+                width: Math.floor(size),
+                height: Math.floor(size),
+              };
             },
+
+            aspectRatio: 1.0,
+
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+            ],
+
+            rememberLastUsedCamera: true,
+
+            disableFlip: false,
           },
           handleScan,
           () => {}
         );
+
+        console.log('ILLUMINATE scanner started');
       } catch (error) {
-        console.error(error);
+        console.error('Camera error:', error);
 
         setStatus('camera-error');
 
@@ -57,13 +84,16 @@ function App() {
     startScanner();
 
     return () => {
-      scanner
-        .stop()
-        .catch(() => {});
-
-      scanner
-        .clear()
-        .catch(() => {});
+      if (scannerRef.current) {
+        scannerRef.current
+          .stop()
+          .catch(() => {})
+          .finally(() => {
+            scannerRef.current
+              ?.clear()
+              .catch(() => {});
+          });
+      }
     };
   }, []);
 
@@ -72,25 +102,29 @@ function App() {
       return;
     }
 
+    if (!decodedText) {
+      return;
+    }
+
+    console.log('QR DETECTED:', decodedText);
+
     processingRef.current = true;
 
     setStatus('checking');
 
     setResult({
-      message: 'VERIFYING TICKET',
-      detail: 'Checking ticket status…',
+      message: 'QR DETECTED',
+      detail: 'Ticket QR successfully scanned.',
     });
 
     const response = await verifyTicket(decodedText);
 
     setResult(response);
-
     setStatus(response.status);
 
     window.setTimeout(() => {
       setResult(null);
       setStatus('idle');
-
       processingRef.current = false;
     }, RESULT_RESET_MS);
   }
@@ -103,55 +137,30 @@ function App() {
 
       <section className="scanner-card">
 
-        {/* HEADER */}
-
         <header className="topbar">
 
           <div>
-
             <div className="eyebrow">
               <span className="live-dot" />
-
               EVENT OPERATIONS
             </div>
 
-            <h1>
-              ILLUMINATE
-            </h1>
+            <h1>ILLUMINATE</h1>
 
-            <p>
-              2026 · STAFF SCANNER
-            </p>
-
+            <p>2026 · STAFF SCANNER</p>
           </div>
 
           <div className="online-badge">
-
             <ShieldCheck size={15} />
-
             SCANNER ONLINE
-
           </div>
 
         </header>
 
-
-        {/* HEADLINE */}
-
         <div className="headline">
-
-          <span>
-            Fast entry.
-          </span>
-
-          <strong>
-            Zero friction.
-          </strong>
-
+          <span>Fast entry.</span>
+          <strong>Zero friction.</strong>
         </div>
-
-
-        {/* CAMERA */}
 
         <div className="reader-frame">
 
@@ -166,11 +175,8 @@ function App() {
 
             {status === 'idle' && (
               <div className="scan-hint">
-
                 <Camera size={16} />
-
                 Align ticket QR inside the frame
-
               </div>
             )}
 
@@ -178,31 +184,21 @@ function App() {
 
         </div>
 
-
-        {/* STATUS */}
-
-        <div
-          className={`status-panel ${status}`}
-        >
+        <div className={`status-panel ${status}`}>
 
           {status === 'idle' && (
             <>
               <TicketCheck size={22} />
 
               <div>
-
-                <b>
-                  READY TO SCAN
-                </b>
+                <b>READY TO SCAN</b>
 
                 <span>
                   Point the camera at an attendee QR
                 </span>
-
               </div>
             </>
           )}
-
 
           {status === 'checking' && (
             <>
@@ -212,19 +208,14 @@ function App() {
               />
 
               <div>
-
-                <b>
-                  VERIFYING TICKET
-                </b>
+                <b>QR DETECTED</b>
 
                 <span>
-                  Please hold the QR steady
+                  Processing ticket…
                 </span>
-
               </div>
             </>
           )}
-
 
           {result &&
             status !== 'idle' &&
@@ -237,34 +228,20 @@ function App() {
                 )}
 
                 <div>
-
-                  <b>
-                    {result.message}
-                  </b>
+                  <b>{result.message}</b>
 
                   <span>
                     {result.detail}
                   </span>
-
                 </div>
               </>
             )}
 
         </div>
 
-
-        {/* FOOTER */}
-
         <footer>
-
-          <span>
-            SECURE VERIFICATION
-          </span>
-
-          <span>
-            ILLUMINATE 2026
-          </span>
-
+          <span>SECURE VERIFICATION</span>
+          <span>ILLUMINATE 2026</span>
         </footer>
 
       </section>
@@ -275,12 +252,12 @@ function App() {
 
 
 /*
-  TEMPORARY FUNCTION
+  TEMPORARY QR VERIFICATION
 
-  The camera works first.
+  This currently tests whether the QR is
+  actually being detected.
 
-  In the next step we will replace this
-  with the real ILLUMINATE check-in API.
+  Backend/check-in connection comes next.
 */
 
 async function verifyTicket(decodedText) {
@@ -303,29 +280,19 @@ async function verifyTicket(decodedText) {
     }
 
     return {
-      status: 'invalid',
+      status: 'approved',
       message: 'QR DETECTED',
       detail:
-        'Ticket token detected. Backend connection comes next.',
+        'Ticket token successfully detected.',
     };
 
   } catch {
 
-    if (!decodedText?.trim()) {
-
-      return {
-        status: 'invalid',
-        message: 'INVALID QR',
-        detail: 'Unreadable ticket data.',
-      };
-
-    }
-
     return {
-      status: 'invalid',
+      status: 'approved',
       message: 'QR DETECTED',
       detail:
-        'QR detected successfully.',
+        'QR code successfully detected.',
     };
 
   }
