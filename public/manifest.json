@@ -1,1 +1,9 @@
-
+{
+  "name": "ILLUMINATE Scanner",
+  "short_name": "ILLUMINATE",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "description": "ILLUMINATE 2026 event check-in scanner"
+}
