@@ -1155,484 +1155,350 @@ function Detail({
    CHECK-IN REQUEST
    ================================================== */
 
-function verifyTicket(
-  decodedText
-) {
+function verifyTicket(decodedText) {
 
-  return new Promise(
-    (resolve) => {
+  return new Promise((resolve) => {
 
-      let token = '';
+    let token = '';
 
+    try {
 
-      /*
-       * Read token from QR.
-       */
+      const url =
+        new URL(decodedText);
 
-      try {
+      token =
+        url.searchParams.get('t') || '';
 
-        const url =
-          new URL(
-            decodedText
-          );
+    } catch {
 
-        token =
-          url.searchParams.get(
-            't'
-          ) || '';
+      resolve({
+        status: 'invalid',
+        message: 'INVALID QR',
+        detail: 'QR format is not valid.',
+      });
 
-      } catch {
+      return;
+    }
 
-        resolve({
 
-          status:
-            'invalid',
+    if (!token) {
 
-          message:
-            'INVALID QR',
+      resolve({
+        status: 'invalid',
+        message: 'INVALID QR',
+        detail: 'No ticket token found.',
+      });
 
-          detail:
-            'QR format is not valid.',
+      return;
+    }
 
-        });
 
-        return;
-      }
+    const callbackName =
+      'illuminateCheckIn_' +
+      Date.now() +
+      '_' +
+      Math.floor(
+        Math.random() * 100000
+      );
 
 
-      if (!token) {
+    const script =
+      document.createElement('script');
 
-        resolve({
 
-          status:
-            'invalid',
+    let finished = false;
 
-          message:
-            'INVALID QR',
 
-          detail:
-            'No ticket token found.',
+    const cleanup = () => {
 
-        });
+      if (script.parentNode) {
 
-        return;
-      }
-
-
-      /*
-       * We use JSONP because GitHub Pages
-       * cannot make a normal cross-origin
-       * request to Apps Script.
-       *
-       * Three attempts are allowed.
-       */
-
-      const MAX_ATTEMPTS =
-        3;
-
-
-      let attempt =
-        0;
-
-
-      function request() {
-
-        attempt++;
-
-
-        const callbackName =
-          'illuminateCheckIn_' +
-          Date.now() +
-          '_' +
-          Math.floor(
-            Math.random() *
-            1000000
-          );
-
-
-        const script =
-          document.createElement(
-            'script'
-          );
-
-
-        let done =
-          false;
-
-
-        let timeoutId =
-          null;
-
-
-        function cleanup() {
-
-          if (
-            timeoutId
-          ) {
-
-            window.clearTimeout(
-              timeoutId
-            );
-          }
-
-
-          if (
-            script.parentNode
-          ) {
-
-            script.parentNode.removeChild(
-              script
-            );
-          }
-
-
-          try {
-
-            delete window[
-              callbackName
-            ];
-
-          } catch {}
-
-        }
-
-
-        function retry() {
-
-          if (done) {
-            return;
-          }
-
-
-          done =
-            true;
-
-
-          cleanup();
-
-
-          if (
-            attempt <
-            MAX_ATTEMPTS
-          ) {
-
-            window.setTimeout(
-              request,
-              1000
-            );
-
-            return;
-          }
-
-
-          resolve({
-
-            status:
-              'error',
-
-            message:
-              'CONNECTION ERROR',
-
-            detail:
-              'Could not connect to the check-in server.',
-
-          });
-
-        }
-
-
-        function finish(
-          response
-        ) {
-
-          if (done) {
-            return;
-          }
-
-
-          done =
-            true;
-
-
-          cleanup();
-
-
-          resolve(
-            response
-          );
-
-        }
-
-
-        window[
-          callbackName
-        ] = (data) => {
-
-          if (done) {
-            return;
-          }
-
-
-          /*
-           * APPROVED
-           */
-
-          if (
-            data &&
-            data.status ===
-              'CHECKED_IN'
-          ) {
-
-            finish({
-
-              status:
-                'approved',
-
-              message:
-                'ENTRY APPROVED',
-
-              detail:
-                data.message ||
-                'Check-in successful.',
-
-              attendee:
-                data,
-
-            });
-
-            return;
-          }
-
-
-          /*
-           * ALREADY USED
-           */
-
-          if (
-            data &&
-            data.status ===
-              'ALREADY_USED'
-          ) {
-
-            finish({
-
-              status:
-                'already-used',
-
-              message:
-                'ALREADY CHECKED IN',
-
-              detail:
-                data.message ||
-                'This ticket has already been used.',
-
-              attendee:
-                data,
-
-            });
-
-            return;
-          }
-
-
-          /*
-           * PAYMENT NOT APPROVED
-           */
-
-          if (
-            data &&
-            data.status ===
-              'NOT_APPROVED'
-          ) {
-
-            finish({
-
-              status:
-                'not-approved',
-
-              message:
-                'ENTRY NOT APPROVED',
-
-              detail:
-                data.message ||
-                'This ticket is not approved.',
-
-              attendee:
-                data,
-
-            });
-
-            return;
-          }
-
-
-          /*
-           * CHECK-IN NOT OPEN
-           */
-
-          if (
-            data &&
-            data.status ===
-              'NOT_OPEN'
-          ) {
-
-            finish({
-
-              status:
-                'not-open',
-
-              message:
-                'CHECK-IN NOT OPEN',
-
-              detail:
-                data.message ||
-                'Entry has not opened yet.',
-
-            });
-
-            return;
-          }
-
-
-          /*
-           * CHECK-IN CLOSED
-           */
-
-          if (
-            data &&
-            data.status ===
-              'CLOSED'
-          ) {
-
-            finish({
-
-              status:
-                'closed',
-
-              message:
-                'CHECK-IN CLOSED',
-
-              detail:
-                data.message ||
-                'Check-in is closed.',
-
-            });
-
-            return;
-          }
-
-
-          /*
-           * SERVER ERROR FROM APPS SCRIPT
-           */
-
-          if (
-            data &&
-            data.status ===
-              'SERVER_ERROR'
-          ) {
-
-            finish({
-
-              status:
-                'error',
-
-              message:
-                'SERVER ERROR',
-
-              detail:
-                data.message ||
-                'The check-in server returned an error.',
-
-            });
-
-            return;
-          }
-
-
-          /*
-           * INVALID
-           */
-
-          finish({
-
-            status:
-              'invalid',
-
-            message:
-              'INVALID TICKET',
-
-            detail:
-              data?.message ||
-              'This ticket could not be verified.',
-
-            attendee:
-              data,
-
-          });
-
-        };
-
-
-        /*
-         * Build URL.
-         */
-
-        const apiUrl =
-          APPS_SCRIPT_URL +
-          '?action=checkin' +
-          '&t=' +
-          encodeURIComponent(
-            token
-          ) +
-          '&callback=' +
-          encodeURIComponent(
-            callbackName
-          ) +
-          '&attempt=' +
-          attempt +
-          '&ts=' +
-          Date.now();
-
-
-        script.src =
-          apiUrl;
-
-
-        script.async =
-          true;
-
-
-        script.onerror =
-          () => {
-
-            retry();
-
-          };
-
-
-        timeoutId =
-          window.setTimeout(
-            () => {
-
-              retry();
-
-            },
-            8000
-          );
-
-
-        document.body.appendChild(
+        script.parentNode.removeChild(
           script
         );
 
       }
 
+      try {
 
-      request();
+        delete window[
+          callbackName
+        ];
 
-    }
-  );
+      } catch {}
+
+    };
+
+
+    const finish = (result) => {
+
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+
+      window.clearTimeout(
+        timeout
+      );
+
+      cleanup();
+
+      resolve(result);
+
+    };
+
+
+    const timeout =
+      window.setTimeout(() => {
+
+        finish({
+
+          status: 'error',
+
+          message:
+            'API TIMEOUT',
+
+          detail:
+            'The scanner sent the request, but the API callback was not received.',
+
+        });
+
+      }, 10000);
+
+
+    /*
+     * JSONP CALLBACK
+     */
+
+    window[
+      callbackName
+    ] = (data) => {
+
+      console.log(
+        'ILLUMINATE API RESPONSE:',
+        data
+      );
+
+
+      if (
+        data &&
+        data.status ===
+          'CHECKED_IN'
+      ) {
+
+        finish({
+
+          status:
+            'approved',
+
+          message:
+            'ENTRY APPROVED',
+
+          detail:
+            data.message ||
+            'Check-in successful.',
+
+          attendee:
+            data,
+
+        });
+
+        return;
+      }
+
+
+      if (
+        data &&
+        data.status ===
+          'ALREADY_USED'
+      ) {
+
+        finish({
+
+          status:
+            'already-used',
+
+          message:
+            'ALREADY CHECKED IN',
+
+          detail:
+            data.message ||
+            'This ticket has already been used.',
+
+          attendee:
+            data,
+
+        });
+
+        return;
+      }
+
+
+      if (
+        data &&
+        data.status ===
+          'NOT_APPROVED'
+      ) {
+
+        finish({
+
+          status:
+            'not-approved',
+
+          message:
+            'ENTRY NOT APPROVED',
+
+          detail:
+            data.message ||
+            'This ticket is not approved.',
+
+          attendee:
+            data,
+
+        });
+
+        return;
+      }
+
+
+      if (
+        data &&
+        data.status ===
+          'NOT_OPEN'
+      ) {
+
+        finish({
+
+          status:
+            'not-open',
+
+          message:
+            'CHECK-IN NOT OPEN',
+
+          detail:
+            data.message ||
+            'Entry has not opened yet.',
+
+        });
+
+        return;
+      }
+
+
+      if (
+        data &&
+        data.status ===
+          'CLOSED'
+      ) {
+
+        finish({
+
+          status:
+            'closed',
+
+          message:
+            'CHECK-IN CLOSED',
+
+          detail:
+            data.message ||
+            'Check-in is closed.',
+
+        });
+
+        return;
+      }
+
+
+      finish({
+
+        status:
+          'invalid',
+
+        message:
+          'INVALID TICKET',
+
+        detail:
+          data?.message ||
+          'This ticket could not be verified.',
+
+        attendee:
+          data,
+
+      });
+
+    };
+
+
+    /*
+     * BUILD API REQUEST
+     */
+
+    const apiUrl =
+      APPS_SCRIPT_URL +
+      '?action=checkin' +
+      '&t=' +
+      encodeURIComponent(
+        token
+      ) +
+      '&callback=' +
+      encodeURIComponent(
+        callbackName
+      );
+
+
+    console.log(
+      'ILLUMINATE API REQUEST:',
+      apiUrl
+    );
+
+
+    script.src =
+      apiUrl;
+
+    script.async = true;
+
+
+    /*
+     * SCRIPT LOADED
+     */
+
+    script.onload = () => {
+
+      console.log(
+        'ILLUMINATE API SCRIPT LOADED'
+      );
+
+    };
+
+
+    /*
+     * SCRIPT FAILED
+     */
+
+    script.onerror = () => {
+
+      finish({
+
+        status:
+          'error',
+
+        message:
+          'API CONNECTION FAILED',
+
+        detail:
+          'The browser could not load the Apps Script response.',
+
+      });
+
+    };
+
+
+    document.body.appendChild(
+      script
+    );
+
+  });
 }
 
 
