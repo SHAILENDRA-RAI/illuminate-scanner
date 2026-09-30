@@ -867,7 +867,6 @@ function verifyTicket(decodedText) {
 
     let token = '';
 
-
     try {
 
       const url =
@@ -879,14 +878,9 @@ function verifyTicket(decodedText) {
     } catch {
 
       resolve({
-
         status: 'invalid',
-
         message: 'INVALID QR',
-
-        detail:
-          'QR format is not valid.',
-
+        detail: 'QR format is not valid.',
       });
 
       return;
@@ -896,292 +890,333 @@ function verifyTicket(decodedText) {
     if (!token) {
 
       resolve({
-
         status: 'invalid',
-
         message: 'INVALID QR',
-
-        detail:
-          'No ticket token found.',
-
+        detail: 'No ticket token found.',
       });
 
       return;
     }
 
 
-    const callbackName =
-      'illuminateCheckIn_' +
-      Date.now() +
-      '_' +
-      Math.floor(
-        Math.random() * 100000
-      );
+    const MAX_ATTEMPTS = 3;
+    let attempt = 0;
 
 
-    const script =
-      document.createElement('script');
+    function runRequest() {
+
+      attempt++;
 
 
-    let finished = false;
-
-
-    const cleanup = () => {
-
-      if (script.parentNode) {
-
-        script.parentNode.removeChild(
-          script
+      const callbackName =
+        'illuminateCheckIn_' +
+        Date.now() +
+        '_' +
+        Math.floor(
+          Math.random() * 100000
         );
-      }
 
 
-      try {
-
-        delete window[
-          callbackName
-        ];
-
-      } catch {}
-
-    };
+      const script =
+        document.createElement('script');
 
 
-    const timeout =
-      window.setTimeout(() => {
+      let finished = false;
+
+
+      const cleanup = () => {
+
+        if (script.parentNode) {
+
+          script.parentNode.removeChild(
+            script
+          );
+        }
+
+
+        try {
+
+          delete window[
+            callbackName
+          ];
+
+        } catch {}
+
+      };
+
+
+      const finish = (result) => {
+
+        if (finished) {
+          return;
+        }
+
+        finished = true;
+
+        window.clearTimeout(timeout);
+
+        cleanup();
+
+        resolve(result);
+      };
+
+
+      const retry = () => {
+
+        if (finished) {
+          return;
+        }
+
+        finished = true;
+
+        window.clearTimeout(timeout);
+
+        cleanup();
+
+
+        if (
+          attempt <
+          MAX_ATTEMPTS
+        ) {
+
+          window.setTimeout(
+            runRequest,
+            1000
+          );
+
+          return;
+        }
+
+
+        resolve({
+          status: 'error',
+          message: 'CONNECTION ERROR',
+          detail:
+            'Could not connect to the check-in server.',
+        });
+
+      };
+
+
+      const timeout =
+        window.setTimeout(() => {
+
+          retry();
+
+        }, 8000);
+
+
+      window[
+        callbackName
+      ] = (data) => {
 
         if (finished) {
           return;
         }
 
 
-        finished = true;
+        /*
+         * Successful check-in
+         */
+        if (
+          data &&
+          data.status ===
+            'CHECKED_IN'
+        ) {
 
-        cleanup();
+          finish({
+
+            status: 'approved',
+
+            message:
+              'ENTRY APPROVED',
+
+            detail:
+              data.message ||
+              'Check-in successful.',
+
+            attendee:
+              data,
+
+          });
+
+          return;
+        }
 
 
-        resolve({
+        /*
+         * Already checked in
+         */
+        if (
+          data &&
+          data.status ===
+            'ALREADY_USED'
+        ) {
 
-          status: 'error',
+          finish({
+
+            status:
+              'already-used',
+
+            message:
+              'ALREADY CHECKED IN',
+
+            detail:
+              data.message ||
+              'This ticket has already been used.',
+
+            attendee:
+              data,
+
+          });
+
+          return;
+        }
+
+
+        /*
+         * Payment not approved
+         */
+        if (
+          data &&
+          data.status ===
+            'NOT_APPROVED'
+        ) {
+
+          finish({
+
+            status:
+              'not-approved',
+
+            message:
+              'ENTRY NOT APPROVED',
+
+            detail:
+              data.message ||
+              'This ticket is not approved.',
+
+            attendee:
+              data,
+
+          });
+
+          return;
+        }
+
+
+        /*
+         * Check-in not open
+         */
+        if (
+          data &&
+          data.status ===
+            'NOT_OPEN'
+        ) {
+
+          finish({
+
+            status:
+              'not-open',
+
+            message:
+              'CHECK-IN NOT OPEN',
+
+            detail:
+              data.message ||
+              'Entry has not opened yet.',
+
+          });
+
+          return;
+        }
+
+
+        /*
+         * Check-in closed
+         */
+        if (
+          data &&
+          data.status ===
+            'CLOSED'
+        ) {
+
+          finish({
+
+            status:
+              'closed',
+
+            message:
+              'CHECK-IN CLOSED',
+
+            detail:
+              data.message ||
+              'Check-in is closed.',
+
+          });
+
+          return;
+        }
+
+
+        /*
+         * Invalid / server response
+         */
+        finish({
+
+          status:
+            'invalid',
 
           message:
-            'SERVER TIMEOUT',
+            'INVALID TICKET',
 
           detail:
-            'Could not reach the check-in server.',
+            data?.message ||
+            'This ticket could not be verified.',
+
+          attendee:
+            data,
 
         });
 
-      }, 10000);
+      };
 
 
-    window[callbackName] = (data) => {
+      const apiUrl =
+        APPS_SCRIPT_URL +
+        '?action=checkin' +
+        '&t=' +
+        encodeURIComponent(
+          token
+        ) +
+        '&callback=' +
+        encodeURIComponent(
+          callbackName
+        ) +
+        '&attempt=' +
+        attempt;
 
-      if (finished) {
-        return;
-      }
+
+      script.src =
+        apiUrl;
+
+      script.async = true;
 
 
-      finished = true;
+      script.onerror = () => {
+
+        retry();
+
+      };
 
 
-      window.clearTimeout(
-        timeout
+      document.body.appendChild(
+        script
       );
 
+    }
 
-      cleanup();
 
-
-      if (
-        data &&
-        data.status === 'CHECKED_IN'
-      ) {
-
-        resolve({
-
-          status: 'approved',
-
-          message:
-            'ENTRY APPROVED',
-
-          detail:
-            data.message ||
-            'Check-in successful.',
-
-          attendee: data,
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status === 'ALREADY_USED'
-      ) {
-
-        resolve({
-
-          status: 'already-used',
-
-          message:
-            'ALREADY CHECKED IN',
-
-          detail:
-            data.message ||
-            'This ticket has already been used.',
-
-          attendee: data,
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status === 'NOT_APPROVED'
-      ) {
-
-        resolve({
-
-          status: 'not-approved',
-
-          message:
-            'ENTRY NOT APPROVED',
-
-          detail:
-            data.message ||
-            'This ticket is not approved.',
-
-          attendee: data,
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status === 'NOT_OPEN'
-      ) {
-
-        resolve({
-
-          status: 'not-open',
-
-          message:
-            'CHECK-IN NOT OPEN',
-
-          detail:
-            data.message ||
-            'Entry has not opened yet.',
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status === 'CLOSED'
-      ) {
-
-        resolve({
-
-          status: 'closed',
-
-          message:
-            'CHECK-IN CLOSED',
-
-          detail:
-            data.message ||
-            'Check-in is closed.',
-
-        });
-
-        return;
-      }
-
-
-      resolve({
-
-        status: 'invalid',
-
-        message:
-          'INVALID TICKET',
-
-        detail:
-          data?.message ||
-          'This ticket could not be verified.',
-
-        attendee: data,
-
-      });
-
-    };
-
-
-    const apiUrl =
-      APPS_SCRIPT_URL +
-      '?action=checkin' +
-      '&t=' +
-      encodeURIComponent(token) +
-      '&callback=' +
-      encodeURIComponent(
-        callbackName
-      );
-
-
-    script.src = apiUrl;
-
-    script.async = true;
-
-
-    script.onerror = () => {
-
-      if (finished) {
-        return;
-      }
-
-
-      finished = true;
-
-
-      window.clearTimeout(
-        timeout
-      );
-
-
-      cleanup();
-
-
-      resolve({
-
-        status: 'error',
-
-        message:
-          'CONNECTION ERROR',
-
-        detail:
-          'Could not connect to the check-in server.',
-
-      });
-
-    };
-
-
-    document.body.appendChild(
-      script
-    );
+    runRequest();
 
   });
 }
-
-
-export default App;
