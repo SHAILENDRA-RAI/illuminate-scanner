@@ -1155,351 +1155,179 @@ function Detail({
    CHECK-IN REQUEST
    ================================================== */
 
-function verifyTicket(decodedText) {
+const verifyTicket = (decodedText) => {
+  const token = extractToken(decodedText);
 
-  return new Promise((resolve) => {
+  if (!token) {
+    setResult({
+      type: 'error',
+      title: 'INVALID QR',
+      message: 'This QR code does not contain a valid ticket token.'
+    });
+    return;
+  }
 
-    let token = '';
+  const iframe = document.createElement('iframe');
 
-    try {
+  iframe.style.position = 'fixed';
+  iframe.style.width = '1px';
+  iframe.style.height = '1px';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.style.border = '0';
 
-      const url =
-        new URL(decodedText);
+  const cleanup = () => {
+    window.removeEventListener('message', handleMessage);
 
-      token =
-        url.searchParams.get('t') || '';
+    if (iframe.parentNode) {
+      iframe.parentNode.removeChild(iframe);
+    }
+  };
 
-    } catch {
+  const handleMessage = (event) => {
 
-      resolve({
-        status: 'invalid',
-        message: 'INVALID QR',
-        detail: 'QR format is not valid.',
-      });
-
+    // Only accept messages from the iframe we created
+    if (event.source !== iframe.contentWindow) {
       return;
     }
 
+    const data = event.data;
 
-    if (!token) {
-
-      resolve({
-        status: 'invalid',
-        message: 'INVALID QR',
-        detail: 'No ticket token found.',
-      });
-
+    if (
+      !data ||
+      data.type !== 'ILLUMINATE_CHECKIN_RESULT'
+    ) {
       return;
     }
 
+    cleanup();
 
-    const callbackName =
-      'illuminateCheckIn_' +
-      Date.now() +
-      '_' +
-      Math.floor(
-        Math.random() * 100000
-      );
+    const response = data.result || {};
 
+    console.log(
+      'ILLUMINATE CHECK-IN RESPONSE:',
+      response
+    );
 
-    const script =
-      document.createElement('script');
+    switch (response.status) {
 
+      case 'CHECKED_IN':
 
-    let finished = false;
+        setResult({
+          type: 'success',
+          title: 'ENTRY APPROVED',
+          message:
+            response.message ||
+            'Ticket verified successfully.'
+        });
 
+        break;
 
-    const cleanup = () => {
+      case 'ALREADY_USED':
 
-      if (script.parentNode) {
+        setResult({
+          type: 'warning',
+          title: 'ALREADY CHECKED IN',
+          message:
+            response.message ||
+            'This ticket has already been used.'
+        });
 
-        script.parentNode.removeChild(
-          script
-        );
+        break;
 
-      }
+      case 'NOT_APPROVED':
 
-      try {
+        setResult({
+          type: 'error',
+          title: 'PAYMENT NOT APPROVED',
+          message:
+            response.message ||
+            'This ticket has not been approved.'
+        });
 
-        delete window[
-          callbackName
-        ];
+        break;
 
-      } catch {}
+      case 'NOT_OPEN':
 
-    };
+        setResult({
+          type: 'warning',
+          title: 'ENTRY NOT OPEN',
+          message:
+            response.message ||
+            'Entry is not open yet.'
+        });
 
+        break;
 
-    const finish = (result) => {
+      case 'CLOSED':
 
-      if (finished) {
-        return;
-      }
+        setResult({
+          type: 'warning',
+          title: 'ENTRY CLOSED',
+          message:
+            response.message ||
+            'Entry is currently closed.'
+        });
 
-      finished = true;
+        break;
 
-      window.clearTimeout(
-        timeout
-      );
+      case 'SERVER_ERROR':
+
+        setResult({
+          type: 'error',
+          title: 'SERVER ERROR',
+          message:
+            response.message ||
+            'Unable to verify the ticket.'
+        });
+
+        break;
+
+      default:
+
+        setResult({
+          type: 'error',
+          title: 'INVALID TICKET',
+          message:
+            response.message ||
+            'This QR code is invalid or does not exist.'
+        });
+    }
+  };
+
+  window.addEventListener(
+    'message',
+    handleMessage
+  );
+
+  iframe.src =
+    APPS_SCRIPT_URL +
+    '?action=checkin' +
+    '&mode=iframe' +
+    '&t=' +
+    encodeURIComponent(token) +
+    '&ts=' +
+    Date.now();
+
+  document.body.appendChild(iframe);
+
+  // Safety timeout
+  setTimeout(() => {
+
+    if (document.body.contains(iframe)) {
 
       cleanup();
 
-      resolve(result);
-
-    };
-
-
-    const timeout =
-      window.setTimeout(() => {
-
-        finish({
-
-          status: 'error',
-
-          message:
-            'API TIMEOUT',
-
-          detail:
-            'The scanner sent the request, but the API callback was not received.',
-
-        });
-
-      }, 10000);
-
-
-    /*
-     * JSONP CALLBACK
-     */
-
-    window[
-      callbackName
-    ] = (data) => {
-
-      console.log(
-        'ILLUMINATE API RESPONSE:',
-        data
-      );
-
-
-      if (
-        data &&
-        data.status ===
-          'CHECKED_IN'
-      ) {
-
-        finish({
-
-          status:
-            'approved',
-
-          message:
-            'ENTRY APPROVED',
-
-          detail:
-            data.message ||
-            'Check-in successful.',
-
-          attendee:
-            data,
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status ===
-          'ALREADY_USED'
-      ) {
-
-        finish({
-
-          status:
-            'already-used',
-
-          message:
-            'ALREADY CHECKED IN',
-
-          detail:
-            data.message ||
-            'This ticket has already been used.',
-
-          attendee:
-            data,
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status ===
-          'NOT_APPROVED'
-      ) {
-
-        finish({
-
-          status:
-            'not-approved',
-
-          message:
-            'ENTRY NOT APPROVED',
-
-          detail:
-            data.message ||
-            'This ticket is not approved.',
-
-          attendee:
-            data,
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status ===
-          'NOT_OPEN'
-      ) {
-
-        finish({
-
-          status:
-            'not-open',
-
-          message:
-            'CHECK-IN NOT OPEN',
-
-          detail:
-            data.message ||
-            'Entry has not opened yet.',
-
-        });
-
-        return;
-      }
-
-
-      if (
-        data &&
-        data.status ===
-          'CLOSED'
-      ) {
-
-        finish({
-
-          status:
-            'closed',
-
-          message:
-            'CHECK-IN CLOSED',
-
-          detail:
-            data.message ||
-            'Check-in is closed.',
-
-        });
-
-        return;
-      }
-
-
-      finish({
-
-        status:
-          'invalid',
-
+      setResult({
+        type: 'error',
+        title: 'API TIMEOUT',
         message:
-          'INVALID TICKET',
-
-        detail:
-          data?.message ||
-          'This ticket could not be verified.',
-
-        attendee:
-          data,
-
+          'The ticket verification request timed out.'
       });
+    }
 
-    };
-
-
-    /*
-     * BUILD API REQUEST
-     */
-
-    const apiUrl =
-      APPS_SCRIPT_URL +
-      '?action=checkin' +
-      '&t=' +
-      encodeURIComponent(
-        token
-      ) +
-      '&callback=' +
-      encodeURIComponent(
-        callbackName
-      );
-
-
-    console.log(
-      'ILLUMINATE API REQUEST:',
-      apiUrl
-    );
-
-
-    script.src =
-      apiUrl;
-
-    script.async = true;
-
-
-    /*
-     * SCRIPT LOADED
-     */
-
-    script.onload = () => {
-
-      console.log(
-        'ILLUMINATE API SCRIPT LOADED'
-      );
-
-    };
-
-
-    /*
-     * SCRIPT FAILED
-     */
-
-    script.onerror = () => {
-
-      finish({
-
-        status:
-          'error',
-
-        message:
-          'API CONNECTION FAILED',
-
-        detail:
-          'The browser could not load the Apps Script response.',
-
-      });
-
-    };
-
-
-    document.body.appendChild(
-      script
-    );
-
-  });
-}
+  }, 15000);
+};
 
 
 export default App;
