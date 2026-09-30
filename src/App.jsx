@@ -14,208 +14,306 @@ import {
 } from 'html5-qrcode';
 
 
-/* ==================================================
-   ILLUMINATE APPS SCRIPT API
-   ================================================== */
-
 const APPS_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbzymqTuKzj1J6yPV5xX_uqJScBL1MtOPjDUtm9iFNfe8P-43skdx48OteGdZ80Ss_zm7Q/exec';
 
 const RESULT_RESET_MS = 3500;
 
 
-/* ==================================================
-   APP
-   ================================================== */
-
 function App() {
+
   const scannerRef = useRef(null);
   const processingRef = useRef(false);
   const startingRef = useRef(false);
   const mountedRef = useRef(true);
 
-  const [status, setStatus] = useState('starting');
+  const [status, setStatus] = useState('camera-off');
   const [result, setResult] = useState(null);
 
 
   /* ==================================================
-     CAMERA
+     START CAMERA
      ================================================== */
 
-  useEffect(() => {
-    mountedRef.current = true;
+  async function startCamera() {
 
-    let scanner = null;
+    if (startingRef.current) {
+      return;
+    }
 
-    async function startCamera() {
-      if (startingRef.current) {
-        return;
+    if (scannerRef.current) {
+      return;
+    }
+
+    startingRef.current = true;
+
+    try {
+
+      setStatus('starting');
+      setResult(null);
+
+
+      /* ----------------------------------------------
+         BASIC CHECKS
+         ---------------------------------------------- */
+
+      if (!window.isSecureContext) {
+        throw new Error(
+          'Camera requires a secure HTTPS connection.'
+        );
       }
 
-      startingRef.current = true;
 
-      try {
-        setStatus('starting');
-        setResult(null);
-
-        /* ----------------------------------------------
-           HTTPS CHECK
-           ---------------------------------------------- */
-
-        if (!window.isSecureContext) {
-          throw new Error(
-            'Camera requires HTTPS. Open the scanner using the GitHub Pages HTTPS URL.'
-          );
-        }
+      if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+        throw new Error(
+          'Camera access is not supported by this browser.'
+        );
+      }
 
 
-        /* ----------------------------------------------
-           CHECK CAMERA API
-           ---------------------------------------------- */
+      /* ----------------------------------------------
+         ASK CAMERA PERMISSION DIRECTLY
+         ---------------------------------------------- */
 
-        if (
-          !navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia
-        ) {
-          throw new Error(
-            'Camera access is not supported by this browser.'
-          );
-        }
+      const permissionStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: {
+              ideal: 'environment',
+            },
+          },
+          audio: false,
+        });
 
 
-        /* ----------------------------------------------
-           CREATE SCANNER
-           ---------------------------------------------- */
+      /*
+       * Permission has now been granted.
+       *
+       * Stop this temporary stream.
+       * html5-qrcode will create its own stream.
+       */
 
-        scanner = new Html5Qrcode('reader', {
+      permissionStream
+        .getTracks()
+        .forEach((track) => {
+          track.stop();
+        });
+
+
+      /* ----------------------------------------------
+         CREATE SCANNER
+         ---------------------------------------------- */
+
+      const scanner =
+        new Html5Qrcode('reader', {
           verbose: false,
         });
 
-        scannerRef.current = scanner;
+
+      scannerRef.current = scanner;
 
 
-        /* ----------------------------------------------
-           START REAR CAMERA
-           ---------------------------------------------- */
+      /* ----------------------------------------------
+         START REAR CAMERA
+         ---------------------------------------------- */
 
-        await scanner.start(
+      await scanner.start(
 
-          {
-            facingMode: 'environment',
-          },
+        {
+          facingMode: 'environment',
+        },
 
-          {
-            fps: 15,
+        {
+          fps: 15,
 
-            qrbox: function (width, height) {
-              const size = Math.floor(
+          qrbox: function (width, height) {
+
+            const size =
+              Math.floor(
                 Math.min(width, height) * 0.72
               );
 
-              return {
-                width: Math.max(size, 180),
-                height: Math.max(size, 180),
-              };
-            },
-
-            aspectRatio: 1.0,
-
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.QR_CODE,
-            ],
-
-            disableFlip: false,
+            return {
+              width: Math.max(size, 180),
+              height: Math.max(size, 180),
+            };
           },
 
-          handleScan,
+          aspectRatio: 1.0,
 
-          () => {
-            /* QR frame not detected - normal */
-          }
-        );
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+          ],
 
+          disableFlip: false,
+        },
 
-        /* ----------------------------------------------
-           CAMERA SUCCESS
-           ---------------------------------------------- */
+        handleScan,
 
-        if (mountedRef.current) {
-          setStatus('idle');
-          setResult(null);
+        () => {
+          /* Normal QR scanning callback */
         }
+      );
 
-      } catch (error) {
 
-        console.error(
-          'ILLUMINATE CAMERA ERROR:',
-          error
-        );
-
-        if (!mountedRef.current) {
-          return;
-        }
-
-        let message =
-          error?.message ||
-          'Unable to start the camera.';
-
-        if (
-          error?.name === 'NotAllowedError' ||
-          message.toLowerCase().includes('permission')
-        ) {
-          message =
-            'Camera permission was denied. Allow camera access in your browser settings and reload this page.';
-        }
-
-        if (
-          error?.name === 'NotFoundError'
-        ) {
-          message =
-            'No camera was found on this device.';
-        }
-
-        if (
-          error?.name === 'NotReadableError'
-        ) {
-          message =
-            'The camera is being used by another app. Close other camera apps and try again.';
-        }
-
-        setStatus('camera-error');
-
-        setResult({
-          message: 'CAMERA ERROR',
-          detail: message,
-        });
-
-      } finally {
-        startingRef.current = false;
+      if (mountedRef.current) {
+        setStatus('idle');
+        setResult(null);
       }
+
+    } catch (error) {
+
+      console.error(
+        'ILLUMINATE CAMERA ERROR:',
+        error
+      );
+
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+
+      let message =
+        error?.message ||
+        'Unable to start the camera.';
+
+
+      if (
+        error?.name === 'NotAllowedError'
+      ) {
+
+        message =
+          'Camera permission is blocked. Allow camera access for this site in Chrome settings.';
+      }
+
+
+      if (
+        error?.name === 'NotFoundError'
+      ) {
+
+        message =
+          'No camera was found on this device.';
+      }
+
+
+      if (
+        error?.name === 'NotReadableError'
+      ) {
+
+        message =
+          'The camera is already being used by another app.';
+      }
+
+
+      if (
+        error?.name === 'OverconstrainedError'
+      ) {
+
+        message =
+          'The rear camera could not be selected. Try again.';
+      }
+
+
+      setStatus('camera-error');
+
+      setResult({
+        message: 'CAMERA ERROR',
+        detail: message,
+      });
+
+
+      /*
+       * Make sure a failed scanner does not
+       * remain stuck in memory.
+       */
+
+      if (scannerRef.current) {
+
+        try {
+          await scannerRef.current.clear();
+        } catch {}
+
+        scannerRef.current = null;
+      }
+
+    } finally {
+
+      startingRef.current = false;
+    }
+  }
+
+
+  /* ==================================================
+     STOP CAMERA
+     ================================================== */
+
+  async function stopCamera() {
+
+    const scanner =
+      scannerRef.current;
+
+    if (!scanner) {
+      return;
     }
 
 
-    startCamera();
+    try {
+
+      await scanner.stop();
+
+    } catch {}
 
 
-    /* ----------------------------------------------
-       CLEANUP
-       ---------------------------------------------- */
+    try {
+
+      await scanner.clear();
+
+    } catch {}
+
+
+    scannerRef.current = null;
+
+    setStatus('camera-off');
+    setResult(null);
+  }
+
+
+  /* ==================================================
+     CLEANUP
+     ================================================== */
+
+  useEffect(() => {
+
+    mountedRef.current = true;
+
 
     return () => {
+
       mountedRef.current = false;
 
+      const scanner =
+        scannerRef.current;
+
       if (scanner) {
+
         scanner
           .stop()
           .catch(() => {})
           .finally(() => {
+
             scanner
               .clear()
               .catch(() => {});
+
           });
       }
 
       scannerRef.current = null;
+
     };
 
   }, []);
@@ -231,16 +329,20 @@ function App() {
       return;
     }
 
+
     if (!decodedText) {
       return;
     }
+
 
     console.log(
       'ILLUMINATE QR:',
       decodedText
     );
 
+
     processingRef.current = true;
+
 
     setStatus('checking');
 
@@ -255,12 +357,16 @@ function App() {
       const response =
         await verifyTicket(decodedText);
 
+
       if (!mountedRef.current) {
         return;
       }
 
+
       setResult(response);
+
       setStatus(response.status);
+
 
       window.setTimeout(() => {
 
@@ -269,10 +375,13 @@ function App() {
         }
 
         setResult(null);
+
         setStatus('idle');
+
         processingRef.current = false;
 
       }, RESULT_RESET_MS);
+
 
     } catch (error) {
 
@@ -281,6 +390,7 @@ function App() {
         error
       );
 
+
       setResult({
         status: 'error',
         message: 'CONNECTION ERROR',
@@ -288,7 +398,9 @@ function App() {
           'Could not connect to the check-in server.',
       });
 
+
       setStatus('error');
+
 
       window.setTimeout(() => {
 
@@ -297,7 +409,9 @@ function App() {
         }
 
         setResult(null);
+
         setStatus('idle');
+
         processingRef.current = false;
 
       }, RESULT_RESET_MS);
@@ -310,6 +424,7 @@ function App() {
      ================================================== */
 
   return (
+
     <main className="app-shell">
 
       <div className="ambient ambient-one" />
@@ -395,6 +510,40 @@ function App() {
             <div className="corner br" />
 
 
+            {status === 'camera-off' && (
+
+              <button
+                className="camera-start-button"
+                onClick={startCamera}
+                type="button"
+              >
+
+                <Camera size={18} />
+
+                START CAMERA
+
+              </button>
+
+            )}
+
+
+            {status === 'camera-error' && (
+
+              <button
+                className="camera-start-button"
+                onClick={startCamera}
+                type="button"
+              >
+
+                <Camera size={18} />
+
+                TRY CAMERA AGAIN
+
+              </button>
+
+            )}
+
+
             {status === 'idle' && (
 
               <div className="scan-hint">
@@ -451,6 +600,31 @@ function ResultPanel({
   result,
 }) {
 
+  if (status === 'camera-off') {
+
+    return (
+
+      <div className="status-panel starting">
+
+        <Camera size={22} />
+
+        <div>
+
+          <b>
+            CAMERA READY
+          </b>
+
+          <span>
+            Tap START CAMERA to begin scanning
+          </span>
+
+        </div>
+
+      </div>
+    );
+  }
+
+
   if (status === 'starting') {
 
     return (
@@ -469,7 +643,7 @@ function ResultPanel({
           </b>
 
           <span>
-            Allow camera access to scan tickets.
+            Accessing rear camera...
           </span>
 
         </div>
@@ -490,7 +664,7 @@ function ResultPanel({
         <div>
 
           <b>
-            CAMERA ACCESS REQUIRED
+            CAMERA ERROR
           </b>
 
           <span>
@@ -557,10 +731,6 @@ function ResultPanel({
   }
 
 
-  /* ----------------------------------------------
-     ATTENDEE RESULT
-     ---------------------------------------------- */
-
   if (result?.attendee) {
 
     return (
@@ -606,7 +776,6 @@ function ResultPanel({
             }
           />
 
-
           <Detail
             label="COLLEGE"
             value={
@@ -614,14 +783,12 @@ function ResultPanel({
             }
           />
 
-
           <Detail
             label="TICKET ID"
             value={
               result.attendee.ticketId
             }
           />
-
 
           <Detail
             label="CHECK-IN TIME"
@@ -636,10 +803,6 @@ function ResultPanel({
     );
   }
 
-
-  /* ----------------------------------------------
-     OTHER RESULT
-     ---------------------------------------------- */
 
   return (
 
@@ -705,10 +868,6 @@ function verifyTicket(decodedText) {
     let token = '';
 
 
-    /* ----------------------------------------------
-       EXTRACT TOKEN
-       ---------------------------------------------- */
-
     try {
 
       const url =
@@ -751,10 +910,6 @@ function verifyTicket(decodedText) {
     }
 
 
-    /* ----------------------------------------------
-       JSONP
-       ---------------------------------------------- */
-
     const callbackName =
       'illuminateCheckIn_' +
       Date.now() +
@@ -780,6 +935,7 @@ function verifyTicket(decodedText) {
         );
       }
 
+
       try {
 
         delete window[
@@ -798,9 +954,11 @@ function verifyTicket(decodedText) {
           return;
         }
 
+
         finished = true;
 
         cleanup();
+
 
         resolve({
 
@@ -823,18 +981,17 @@ function verifyTicket(decodedText) {
         return;
       }
 
+
       finished = true;
+
 
       window.clearTimeout(
         timeout
       );
 
+
       cleanup();
 
-
-      /* ------------------------------------------
-         APPROVED
-         ------------------------------------------ */
 
       if (
         data &&
@@ -860,10 +1017,6 @@ function verifyTicket(decodedText) {
       }
 
 
-      /* ------------------------------------------
-         ALREADY USED
-         ------------------------------------------ */
-
       if (
         data &&
         data.status === 'ALREADY_USED'
@@ -887,10 +1040,6 @@ function verifyTicket(decodedText) {
         return;
       }
 
-
-      /* ------------------------------------------
-         PAYMENT NOT APPROVED
-         ------------------------------------------ */
 
       if (
         data &&
@@ -916,10 +1065,6 @@ function verifyTicket(decodedText) {
       }
 
 
-      /* ------------------------------------------
-         EVENT NOT OPEN
-         ------------------------------------------ */
-
       if (
         data &&
         data.status === 'NOT_OPEN'
@@ -941,10 +1086,6 @@ function verifyTicket(decodedText) {
         return;
       }
 
-
-      /* ------------------------------------------
-         EVENT CLOSED
-         ------------------------------------------ */
 
       if (
         data &&
@@ -968,10 +1109,6 @@ function verifyTicket(decodedText) {
       }
 
 
-      /* ------------------------------------------
-         INVALID
-         ------------------------------------------ */
-
       resolve({
 
         status: 'invalid',
@@ -989,10 +1126,6 @@ function verifyTicket(decodedText) {
 
     };
 
-
-    /* ----------------------------------------------
-       API URL
-       ---------------------------------------------- */
 
     const apiUrl =
       APPS_SCRIPT_URL +
@@ -1016,13 +1149,17 @@ function verifyTicket(decodedText) {
         return;
       }
 
+
       finished = true;
+
 
       window.clearTimeout(
         timeout
       );
 
+
       cleanup();
+
 
       resolve({
 
