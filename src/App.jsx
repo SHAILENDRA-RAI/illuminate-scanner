@@ -14,21 +14,41 @@ import {
 } from 'html5-qrcode';
 
 
+/* ==================================================
+   APPS SCRIPT API
+   ================================================== */
+
 const APPS_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbzymqTuKzj1J6yPV5xX_uqJScBL1MtOPjDUtm9iFNfe8P-43skdx48OteGdZ80Ss_zm7Q/exec';
+
 
 const RESULT_RESET_MS = 3500;
 
 
+/* ==================================================
+   APP
+   ================================================== */
+
 function App() {
 
-  const scannerRef = useRef(null);
-  const processingRef = useRef(false);
-  const startingRef = useRef(false);
-  const mountedRef = useRef(true);
+  const scannerRef =
+    useRef(null);
 
-  const [status, setStatus] = useState('camera-off');
-  const [result, setResult] = useState(null);
+  const processingRef =
+    useRef(false);
+
+  const startingRef =
+    useRef(false);
+
+  const mountedRef =
+    useRef(true);
+
+
+  const [status, setStatus] =
+    useState('camera-off');
+
+  const [result, setResult] =
+    useState(null);
 
 
   /* ==================================================
@@ -37,27 +57,39 @@ function App() {
 
   async function startCamera() {
 
-    if (startingRef.current) {
+    if (
+      startingRef.current
+    ) {
       return;
     }
 
-    if (scannerRef.current) {
+
+    if (
+      scannerRef.current
+    ) {
       return;
     }
 
-    startingRef.current = true;
+
+    startingRef.current =
+      true;
+
 
     try {
 
-      setStatus('starting');
-      setResult(null);
+      setStatus(
+        'starting'
+      );
+
+      setResult(
+        null
+      );
 
 
-      /* ----------------------------------------------
-         BASIC CHECKS
-         ---------------------------------------------- */
+      if (
+        !window.isSecureContext
+      ) {
 
-      if (!window.isSecureContext) {
         throw new Error(
           'Camera requires a secure HTTPS connection.'
         );
@@ -68,6 +100,7 @@ function App() {
         !navigator.mediaDevices ||
         !navigator.mediaDevices.getUserMedia
       ) {
+
         throw new Error(
           'Camera access is not supported by this browser.'
         );
@@ -75,96 +108,135 @@ function App() {
 
 
       /* ----------------------------------------------
-         ASK CAMERA PERMISSION DIRECTLY
+         REQUEST CAMERA PERMISSION
          ---------------------------------------------- */
 
       const permissionStream =
         await navigator.mediaDevices.getUserMedia({
+
           video: {
             facingMode: {
               ideal: 'environment',
             },
           },
+
           audio: false,
+
         });
 
-
-      /*
-       * Permission has now been granted.
-       *
-       * Stop this temporary stream.
-       * html5-qrcode will create its own stream.
-       */
 
       permissionStream
         .getTracks()
-        .forEach((track) => {
-          track.stop();
-        });
+        .forEach(
+          (track) => {
+            track.stop();
+          }
+        );
 
 
       /* ----------------------------------------------
-         CREATE SCANNER
+         CREATE QR SCANNER
          ---------------------------------------------- */
 
       const scanner =
-        new Html5Qrcode('reader', {
-          verbose: false,
-        });
+        new Html5Qrcode(
+          'reader',
+          {
+            verbose: false,
+          }
+        );
 
 
-      scannerRef.current = scanner;
+      scannerRef.current =
+        scanner;
 
 
       /* ----------------------------------------------
-         START REAR CAMERA
+         START CAMERA
          ---------------------------------------------- */
 
       await scanner.start(
 
         {
-          facingMode: 'environment',
+          facingMode:
+            'environment',
         },
 
         {
+
           fps: 15,
 
-          qrbox: function (width, height) {
+          qrbox:
+            function (
+              width,
+              height
+            ) {
 
-            const size =
-              Math.floor(
-                Math.min(width, height) * 0.72
-              );
+              const size =
+                Math.floor(
+                  Math.min(
+                    width,
+                    height
+                  ) * 0.72
+                );
 
-            return {
-              width: Math.max(size, 180),
-              height: Math.max(size, 180),
-            };
-          },
 
-          aspectRatio: 1.0,
+              return {
+
+                width:
+                  Math.max(
+                    size,
+                    180
+                  ),
+
+                height:
+                  Math.max(
+                    size,
+                    180
+                  ),
+
+              };
+            },
+
+
+          aspectRatio:
+            1.0,
+
 
           formatsToSupport: [
             Html5QrcodeSupportedFormats.QR_CODE,
           ],
 
-          disableFlip: false,
+
+          disableFlip:
+            false,
+
         },
 
         handleScan,
 
-        () => {
-          /* Normal QR scanning callback */
-        }
+        () => {}
+
       );
 
 
-      if (mountedRef.current) {
-        setStatus('idle');
-        setResult(null);
+      if (
+        mountedRef.current
+      ) {
+
+        setStatus(
+          'idle'
+        );
+
+        setResult(
+          null
+        );
       }
 
-    } catch (error) {
+
+    } catch (
+      error
+    ) {
 
       console.error(
         'ILLUMINATE CAMERA ERROR:',
@@ -172,7 +244,9 @@ function App() {
       );
 
 
-      if (!mountedRef.current) {
+      if (
+        !mountedRef.current
+      ) {
         return;
       }
 
@@ -183,7 +257,8 @@ function App() {
 
 
       if (
-        error?.name === 'NotAllowedError'
+        error?.name ===
+        'NotAllowedError'
       ) {
 
         message =
@@ -192,7 +267,8 @@ function App() {
 
 
       if (
-        error?.name === 'NotFoundError'
+        error?.name ===
+        'NotFoundError'
       ) {
 
         message =
@@ -201,7 +277,8 @@ function App() {
 
 
       if (
-        error?.name === 'NotReadableError'
+        error?.name ===
+        'NotReadableError'
       ) {
 
         message =
@@ -210,7 +287,8 @@ function App() {
 
 
       if (
-        error?.name === 'OverconstrainedError'
+        error?.name ===
+        'OverconstrainedError'
       ) {
 
         message =
@@ -218,31 +296,42 @@ function App() {
       }
 
 
-      setStatus('camera-error');
+      setStatus(
+        'camera-error'
+      );
+
 
       setResult({
-        message: 'CAMERA ERROR',
-        detail: message,
+
+        message:
+          'CAMERA ERROR',
+
+        detail:
+          message,
+
       });
 
 
-      /*
-       * Make sure a failed scanner does not
-       * remain stuck in memory.
-       */
-
-      if (scannerRef.current) {
+      if (
+        scannerRef.current
+      ) {
 
         try {
+
           await scannerRef.current.clear();
+
         } catch {}
 
-        scannerRef.current = null;
+        scannerRef.current =
+          null;
       }
+
 
     } finally {
 
-      startingRef.current = false;
+      startingRef.current =
+        false;
+
     }
   }
 
@@ -255,6 +344,7 @@ function App() {
 
     const scanner =
       scannerRef.current;
+
 
     if (!scanner) {
       return;
@@ -275,10 +365,18 @@ function App() {
     } catch {}
 
 
-    scannerRef.current = null;
+    scannerRef.current =
+      null;
 
-    setStatus('camera-off');
-    setResult(null);
+
+    setStatus(
+      'camera-off'
+    );
+
+
+    setResult(
+      null
+    );
   }
 
 
@@ -286,51 +384,72 @@ function App() {
      CLEANUP
      ================================================== */
 
-  useEffect(() => {
+  useEffect(
+    () => {
 
-    mountedRef.current = true;
+      mountedRef.current =
+        true;
 
 
-    return () => {
+      return () => {
 
-      mountedRef.current = false;
+        mountedRef.current =
+          false;
 
-      const scanner =
-        scannerRef.current;
 
-      if (scanner) {
+        const scanner =
+          scannerRef.current;
 
-        scanner
-          .stop()
-          .catch(() => {})
-          .finally(() => {
 
-            scanner
-              .clear()
-              .catch(() => {});
+        if (scanner) {
 
-          });
-      }
+          scanner
+            .stop()
+            .catch(
+              () => {}
+            )
+            .finally(
+              () => {
 
-      scannerRef.current = null;
+                scanner
+                  .clear()
+                  .catch(
+                    () => {}
+                  );
 
-    };
+              }
+            );
+        }
 
-  }, []);
+
+        scannerRef.current =
+          null;
+
+      };
+
+    },
+    []
+  );
 
 
   /* ==================================================
      QR DETECTED
      ================================================== */
 
-  async function handleScan(decodedText) {
+  async function handleScan(
+    decodedText
+  ) {
 
-    if (processingRef.current) {
+    if (
+      processingRef.current
+    ) {
       return;
     }
 
 
-    if (!decodedText) {
+    if (
+      !decodedText
+    ) {
       return;
     }
 
@@ -341,49 +460,82 @@ function App() {
     );
 
 
-    processingRef.current = true;
+    processingRef.current =
+      true;
 
 
-    setStatus('checking');
+    setStatus(
+      'checking'
+    );
+
 
     setResult({
-      message: 'VERIFYING TICKET',
-      detail: 'Checking registration...',
+
+      message:
+        'VERIFYING TICKET',
+
+      detail:
+        'Checking registration...',
+
     });
 
 
     try {
 
       const response =
-        await verifyTicket(decodedText);
+        await verifyTicket(
+          decodedText
+        );
 
 
-      if (!mountedRef.current) {
+      if (
+        !mountedRef.current
+      ) {
         return;
       }
 
 
-      setResult(response);
-
-      setStatus(response.status);
-
-
-      window.setTimeout(() => {
-
-        if (!mountedRef.current) {
-          return;
-        }
-
-        setResult(null);
-
-        setStatus('idle');
-
-        processingRef.current = false;
-
-      }, RESULT_RESET_MS);
+      setResult(
+        response
+      );
 
 
-    } catch (error) {
+      setStatus(
+        response.status
+      );
+
+
+      window.setTimeout(
+        () => {
+
+          if (
+            !mountedRef.current
+          ) {
+            return;
+          }
+
+
+          setResult(
+            null
+          );
+
+
+          setStatus(
+            'idle'
+          );
+
+
+          processingRef.current =
+            false;
+
+        },
+        RESULT_RESET_MS
+      );
+
+
+    } catch (
+      error
+    ) {
 
       console.error(
         'CHECK-IN ERROR:',
@@ -392,29 +544,50 @@ function App() {
 
 
       setResult({
-        status: 'error',
-        message: 'CONNECTION ERROR',
+
+        status:
+          'error',
+
+        message:
+          'CONNECTION ERROR',
+
         detail:
           'Could not connect to the check-in server.',
+
       });
 
 
-      setStatus('error');
+      setStatus(
+        'error'
+      );
 
 
-      window.setTimeout(() => {
+      window.setTimeout(
+        () => {
 
-        if (!mountedRef.current) {
-          return;
-        }
+          if (
+            !mountedRef.current
+          ) {
+            return;
+          }
 
-        setResult(null);
 
-        setStatus('idle');
+          setResult(
+            null
+          );
 
-        processingRef.current = false;
 
-      }, RESULT_RESET_MS);
+          setStatus(
+            'idle'
+          );
+
+
+          processingRef.current =
+            false;
+
+        },
+        RESULT_RESET_MS
+      );
     }
   }
 
@@ -425,24 +598,39 @@ function App() {
 
   return (
 
-    <main className="app-shell">
+    <main
+      className="app-shell"
+    >
 
-      <div className="ambient ambient-one" />
-      <div className="ambient ambient-two" />
+      <div
+        className="ambient ambient-one"
+      />
+
+      <div
+        className="ambient ambient-two"
+      />
 
 
-      <section className="scanner-card">
+      <section
+        className="scanner-card"
+      >
 
 
         {/* HEADER */}
 
-        <header className="topbar">
+        <header
+          className="topbar"
+        >
 
           <div>
 
-            <div className="eyebrow">
+            <div
+              className="eyebrow"
+            >
 
-              <span className="live-dot" />
+              <span
+                className="live-dot"
+              />
 
               EVENT OPERATIONS
 
@@ -461,9 +649,13 @@ function App() {
           </div>
 
 
-          <div className="online-badge">
+          <div
+            className="online-badge"
+          >
 
-            <ShieldCheck size={15} />
+            <ShieldCheck
+              size={15}
+            />
 
             SCANNER ONLINE
 
@@ -474,7 +666,9 @@ function App() {
 
         {/* HEADLINE */}
 
-        <div className="headline">
+        <div
+          className="headline"
+        >
 
           <span>
             Fast entry.
@@ -489,7 +683,9 @@ function App() {
 
         {/* CAMERA */}
 
-        <div className="reader-frame">
+        <div
+          className="reader-frame"
+        >
 
           <div
             id="reader"
@@ -502,23 +698,41 @@ function App() {
           />
 
 
-          <div className="scan-overlay">
+          <div
+            className="scan-overlay"
+          >
 
-            <div className="corner tl" />
-            <div className="corner tr" />
-            <div className="corner bl" />
-            <div className="corner br" />
+            <div
+              className="corner tl"
+            />
+
+            <div
+              className="corner tr"
+            />
+
+            <div
+              className="corner bl"
+            />
+
+            <div
+              className="corner br"
+            />
 
 
-            {status === 'camera-off' && (
+            {status ===
+              'camera-off' && (
 
               <button
                 className="camera-start-button"
-                onClick={startCamera}
+                onClick={
+                  startCamera
+                }
                 type="button"
               >
 
-                <Camera size={18} />
+                <Camera
+                  size={18}
+                />
 
                 START CAMERA
 
@@ -527,15 +741,20 @@ function App() {
             )}
 
 
-            {status === 'camera-error' && (
+            {status ===
+              'camera-error' && (
 
               <button
                 className="camera-start-button"
-                onClick={startCamera}
+                onClick={
+                  startCamera
+                }
                 type="button"
               >
 
-                <Camera size={18} />
+                <Camera
+                  size={18}
+                />
 
                 TRY CAMERA AGAIN
 
@@ -544,11 +763,16 @@ function App() {
             )}
 
 
-            {status === 'idle' && (
+            {status ===
+              'idle' && (
 
-              <div className="scan-hint">
+              <div
+                className="scan-hint"
+              >
 
-                <Camera size={16} />
+                <Camera
+                  size={16}
+                />
 
                 Align ticket QR inside
                 the frame
@@ -587,6 +811,7 @@ function App() {
       </section>
 
     </main>
+
   );
 }
 
@@ -600,13 +825,20 @@ function ResultPanel({
   result,
 }) {
 
-  if (status === 'camera-off') {
+  if (
+    status ===
+    'camera-off'
+  ) {
 
     return (
 
-      <div className="status-panel starting">
+      <div
+        className="status-panel starting"
+      >
 
-        <Camera size={22} />
+        <Camera
+          size={22}
+        />
 
         <div>
 
@@ -621,15 +853,21 @@ function ResultPanel({
         </div>
 
       </div>
+
     );
   }
 
 
-  if (status === 'starting') {
+  if (
+    status ===
+    'starting'
+  ) {
 
     return (
 
-      <div className="status-panel starting">
+      <div
+        className="status-panel starting"
+      >
 
         <ShieldCheck
           size={22}
@@ -649,17 +887,25 @@ function ResultPanel({
         </div>
 
       </div>
+
     );
   }
 
 
-  if (status === 'camera-error') {
+  if (
+    status ===
+    'camera-error'
+  ) {
 
     return (
 
-      <div className="status-panel camera-error">
+      <div
+        className="status-panel camera-error"
+      >
 
-        <XCircle size={24} />
+        <XCircle
+          size={24}
+        />
 
         <div>
 
@@ -674,17 +920,25 @@ function ResultPanel({
         </div>
 
       </div>
+
     );
   }
 
 
-  if (status === 'idle') {
+  if (
+    status ===
+    'idle'
+  ) {
 
     return (
 
-      <div className="status-panel idle">
+      <div
+        className="status-panel idle"
+      >
 
-        <TicketCheck size={22} />
+        <TicketCheck
+          size={22}
+        />
 
         <div>
 
@@ -699,15 +953,21 @@ function ResultPanel({
         </div>
 
       </div>
+
     );
   }
 
 
-  if (status === 'checking') {
+  if (
+    status ===
+    'checking'
+  ) {
 
     return (
 
-      <div className="status-panel checking">
+      <div
+        className="status-panel checking"
+      >
 
         <ShieldCheck
           size={22}
@@ -727,11 +987,14 @@ function ResultPanel({
         </div>
 
       </div>
+
     );
   }
 
 
-  if (result?.attendee) {
+  if (
+    result?.attendee
+  ) {
 
     return (
 
@@ -739,15 +1002,22 @@ function ResultPanel({
         className={`attendee-result ${status}`}
       >
 
-        <div className="result-title">
+        <div
+          className="result-title"
+        >
 
-          {status === 'approved' ? (
+          {status ===
+            'approved' ? (
 
-            <CheckCircle2 size={27} />
+            <CheckCircle2
+              size={27}
+            />
 
           ) : (
 
-            <XCircle size={27} />
+            <XCircle
+              size={27}
+            />
 
           )}
 
@@ -767,39 +1037,50 @@ function ResultPanel({
         </div>
 
 
-        <div className="attendee-details">
+        <div
+          className="attendee-details"
+        >
 
           <Detail
             label="NAME"
             value={
-              result.attendee.name
+              result
+                .attendee
+                .name
             }
           />
 
           <Detail
             label="COLLEGE"
             value={
-              result.attendee.college
+              result
+                .attendee
+                .college
             }
           />
 
           <Detail
             label="TICKET ID"
             value={
-              result.attendee.ticketId
+              result
+                .attendee
+                .ticketId
             }
           />
 
           <Detail
             label="CHECK-IN TIME"
             value={
-              result.attendee.checkinTime
+              result
+                .attendee
+                .checkinTime
             }
           />
 
         </div>
 
       </div>
+
     );
   }
 
@@ -810,23 +1091,30 @@ function ResultPanel({
       className={`status-panel ${status}`}
     >
 
-      <XCircle size={24} />
+      <XCircle
+        size={24}
+      />
 
       <div>
 
         <b>
-          {result?.message ||
-            'VERIFICATION FAILED'}
+          {
+            result?.message ||
+            'VERIFICATION FAILED'
+          }
         </b>
 
         <span>
-          {result?.detail ||
-            'Unable to verify ticket.'}
+          {
+            result?.detail ||
+            'Unable to verify ticket.'
+          }
         </span>
 
       </div>
 
     </div>
+
   );
 }
 
@@ -842,381 +1130,510 @@ function Detail({
 
   return (
 
-    <div className="detail-item">
+    <div
+      className="detail-item"
+    >
 
       <small>
         {label}
       </small>
 
       <strong>
-        {value || 'Not available'}
+        {
+          value ||
+          'Not available'
+        }
       </strong>
 
     </div>
+
   );
 }
 
 
 /* ==================================================
-   APPS SCRIPT CHECK-IN
+   CHECK-IN REQUEST
    ================================================== */
 
-function verifyTicket(decodedText) {
+function verifyTicket(
+  decodedText
+) {
 
-  return new Promise((resolve) => {
+  return new Promise(
+    (resolve) => {
 
-    let token = '';
-
-    try {
-
-      const url =
-        new URL(decodedText);
-
-      token =
-        url.searchParams.get('t') || '';
-
-    } catch {
-
-      resolve({
-        status: 'invalid',
-        message: 'INVALID QR',
-        detail: 'QR format is not valid.',
-      });
-
-      return;
-    }
+      let token = '';
 
 
-    if (!token) {
+      /*
+       * Read token from QR.
+       */
 
-      resolve({
-        status: 'invalid',
-        message: 'INVALID QR',
-        detail: 'No ticket token found.',
-      });
+      try {
 
-      return;
-    }
-
-
-    const MAX_ATTEMPTS = 3;
-    let attempt = 0;
-
-
-    function runRequest() {
-
-      attempt++;
-
-
-      const callbackName =
-        'illuminateCheckIn_' +
-        Date.now() +
-        '_' +
-        Math.floor(
-          Math.random() * 100000
-        );
-
-
-      const script =
-        document.createElement('script');
-
-
-      let finished = false;
-
-
-      const cleanup = () => {
-
-        if (script.parentNode) {
-
-          script.parentNode.removeChild(
-            script
-          );
-        }
-
-
-        try {
-
-          delete window[
-            callbackName
-          ];
-
-        } catch {}
-
-      };
-
-
-      const finish = (result) => {
-
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-
-        window.clearTimeout(timeout);
-
-        cleanup();
-
-        resolve(result);
-      };
-
-
-      const retry = () => {
-
-        if (finished) {
-          return;
-        }
-
-        finished = true;
-
-        window.clearTimeout(timeout);
-
-        cleanup();
-
-
-        if (
-          attempt <
-          MAX_ATTEMPTS
-        ) {
-
-          window.setTimeout(
-            runRequest,
-            1000
+        const url =
+          new URL(
+            decodedText
           );
 
-          return;
-        }
+        token =
+          url.searchParams.get(
+            't'
+          ) || '';
 
+      } catch {
 
         resolve({
-          status: 'error',
-          message: 'CONNECTION ERROR',
-          detail:
-            'Could not connect to the check-in server.',
-        });
-
-      };
-
-
-      const timeout =
-        window.setTimeout(() => {
-
-          retry();
-
-        }, 8000);
-
-
-      window[
-        callbackName
-      ] = (data) => {
-
-        if (finished) {
-          return;
-        }
-
-
-        /*
-         * Successful check-in
-         */
-        if (
-          data &&
-          data.status ===
-            'CHECKED_IN'
-        ) {
-
-          finish({
-
-            status: 'approved',
-
-            message:
-              'ENTRY APPROVED',
-
-            detail:
-              data.message ||
-              'Check-in successful.',
-
-            attendee:
-              data,
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * Already checked in
-         */
-        if (
-          data &&
-          data.status ===
-            'ALREADY_USED'
-        ) {
-
-          finish({
-
-            status:
-              'already-used',
-
-            message:
-              'ALREADY CHECKED IN',
-
-            detail:
-              data.message ||
-              'This ticket has already been used.',
-
-            attendee:
-              data,
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * Payment not approved
-         */
-        if (
-          data &&
-          data.status ===
-            'NOT_APPROVED'
-        ) {
-
-          finish({
-
-            status:
-              'not-approved',
-
-            message:
-              'ENTRY NOT APPROVED',
-
-            detail:
-              data.message ||
-              'This ticket is not approved.',
-
-            attendee:
-              data,
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * Check-in not open
-         */
-        if (
-          data &&
-          data.status ===
-            'NOT_OPEN'
-        ) {
-
-          finish({
-
-            status:
-              'not-open',
-
-            message:
-              'CHECK-IN NOT OPEN',
-
-            detail:
-              data.message ||
-              'Entry has not opened yet.',
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * Check-in closed
-         */
-        if (
-          data &&
-          data.status ===
-            'CLOSED'
-        ) {
-
-          finish({
-
-            status:
-              'closed',
-
-            message:
-              'CHECK-IN CLOSED',
-
-            detail:
-              data.message ||
-              'Check-in is closed.',
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * Invalid / server response
-         */
-        finish({
 
           status:
             'invalid',
 
           message:
-            'INVALID TICKET',
+            'INVALID QR',
 
           detail:
-            data?.message ||
-            'This ticket could not be verified.',
-
-          attendee:
-            data,
+            'QR format is not valid.',
 
         });
 
-      };
+        return;
+      }
 
 
-      const apiUrl =
-        APPS_SCRIPT_URL +
-        '?action=checkin' +
-        '&t=' +
-        encodeURIComponent(
-          token
-        ) +
-        '&callback=' +
-        encodeURIComponent(
+      if (!token) {
+
+        resolve({
+
+          status:
+            'invalid',
+
+          message:
+            'INVALID QR',
+
+          detail:
+            'No ticket token found.',
+
+        });
+
+        return;
+      }
+
+
+      /*
+       * We use JSONP because GitHub Pages
+       * cannot make a normal cross-origin
+       * request to Apps Script.
+       *
+       * Three attempts are allowed.
+       */
+
+      const MAX_ATTEMPTS =
+        3;
+
+
+      let attempt =
+        0;
+
+
+      function request() {
+
+        attempt++;
+
+
+        const callbackName =
+          'illuminateCheckIn_' +
+          Date.now() +
+          '_' +
+          Math.floor(
+            Math.random() *
+            1000000
+          );
+
+
+        const script =
+          document.createElement(
+            'script'
+          );
+
+
+        let done =
+          false;
+
+
+        let timeoutId =
+          null;
+
+
+        function cleanup() {
+
+          if (
+            timeoutId
+          ) {
+
+            window.clearTimeout(
+              timeoutId
+            );
+          }
+
+
+          if (
+            script.parentNode
+          ) {
+
+            script.parentNode.removeChild(
+              script
+            );
+          }
+
+
+          try {
+
+            delete window[
+              callbackName
+            ];
+
+          } catch {}
+
+        }
+
+
+        function retry() {
+
+          if (done) {
+            return;
+          }
+
+
+          done =
+            true;
+
+
+          cleanup();
+
+
+          if (
+            attempt <
+            MAX_ATTEMPTS
+          ) {
+
+            window.setTimeout(
+              request,
+              1000
+            );
+
+            return;
+          }
+
+
+          resolve({
+
+            status:
+              'error',
+
+            message:
+              'CONNECTION ERROR',
+
+            detail:
+              'Could not connect to the check-in server.',
+
+          });
+
+        }
+
+
+        function finish(
+          response
+        ) {
+
+          if (done) {
+            return;
+          }
+
+
+          done =
+            true;
+
+
+          cleanup();
+
+
+          resolve(
+            response
+          );
+
+        }
+
+
+        window[
           callbackName
-        ) +
-        '&attempt=' +
-        attempt;
+        ] = (data) => {
+
+          if (done) {
+            return;
+          }
 
 
-      script.src =
-        apiUrl;
+          /*
+           * APPROVED
+           */
 
-      script.async = true;
+          if (
+            data &&
+            data.status ===
+              'CHECKED_IN'
+          ) {
+
+            finish({
+
+              status:
+                'approved',
+
+              message:
+                'ENTRY APPROVED',
+
+              detail:
+                data.message ||
+                'Check-in successful.',
+
+              attendee:
+                data,
+
+            });
+
+            return;
+          }
 
 
-      script.onerror = () => {
+          /*
+           * ALREADY USED
+           */
 
-        retry();
+          if (
+            data &&
+            data.status ===
+              'ALREADY_USED'
+          ) {
 
-      };
+            finish({
+
+              status:
+                'already-used',
+
+              message:
+                'ALREADY CHECKED IN',
+
+              detail:
+                data.message ||
+                'This ticket has already been used.',
+
+              attendee:
+                data,
+
+            });
+
+            return;
+          }
 
 
-      document.body.appendChild(
-        script
-      );
+          /*
+           * PAYMENT NOT APPROVED
+           */
+
+          if (
+            data &&
+            data.status ===
+              'NOT_APPROVED'
+          ) {
+
+            finish({
+
+              status:
+                'not-approved',
+
+              message:
+                'ENTRY NOT APPROVED',
+
+              detail:
+                data.message ||
+                'This ticket is not approved.',
+
+              attendee:
+                data,
+
+            });
+
+            return;
+          }
+
+
+          /*
+           * CHECK-IN NOT OPEN
+           */
+
+          if (
+            data &&
+            data.status ===
+              'NOT_OPEN'
+          ) {
+
+            finish({
+
+              status:
+                'not-open',
+
+              message:
+                'CHECK-IN NOT OPEN',
+
+              detail:
+                data.message ||
+                'Entry has not opened yet.',
+
+            });
+
+            return;
+          }
+
+
+          /*
+           * CHECK-IN CLOSED
+           */
+
+          if (
+            data &&
+            data.status ===
+              'CLOSED'
+          ) {
+
+            finish({
+
+              status:
+                'closed',
+
+              message:
+                'CHECK-IN CLOSED',
+
+              detail:
+                data.message ||
+                'Check-in is closed.',
+
+            });
+
+            return;
+          }
+
+
+          /*
+           * SERVER ERROR FROM APPS SCRIPT
+           */
+
+          if (
+            data &&
+            data.status ===
+              'SERVER_ERROR'
+          ) {
+
+            finish({
+
+              status:
+                'error',
+
+              message:
+                'SERVER ERROR',
+
+              detail:
+                data.message ||
+                'The check-in server returned an error.',
+
+            });
+
+            return;
+          }
+
+
+          /*
+           * INVALID
+           */
+
+          finish({
+
+            status:
+              'invalid',
+
+            message:
+              'INVALID TICKET',
+
+            detail:
+              data?.message ||
+              'This ticket could not be verified.',
+
+            attendee:
+              data,
+
+          });
+
+        };
+
+
+        /*
+         * Build URL.
+         */
+
+        const apiUrl =
+          APPS_SCRIPT_URL +
+          '?action=checkin' +
+          '&t=' +
+          encodeURIComponent(
+            token
+          ) +
+          '&callback=' +
+          encodeURIComponent(
+            callbackName
+          ) +
+          '&attempt=' +
+          attempt +
+          '&ts=' +
+          Date.now();
+
+
+        script.src =
+          apiUrl;
+
+
+        script.async =
+          true;
+
+
+        script.onerror =
+          () => {
+
+            retry();
+
+          };
+
+
+        timeoutId =
+          window.setTimeout(
+            () => {
+
+              retry();
+
+            },
+            8000
+          );
+
+
+        document.body.appendChild(
+          script
+        );
+
+      }
+
+
+      request();
 
     }
-
-
-    runRequest();
-
-  });
+  );
 }
+
+
+export default App;
