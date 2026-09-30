@@ -1,78 +1,662 @@
-/* ==================================================
-   ATTENDEE RESULT
-   ================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap');
 
-.attendee-result {
-  width: 100%;
+:root {
+  font-family: 'Montserrat', sans-serif;
+
+  color: #ffffff;
+  background: #050509;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
   box-sizing: border-box;
-  padding: 15px;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      circle at 85% 5%,
+      rgba(130, 48, 255, 0.22),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 5% 90%,
+      rgba(91, 35, 180, 0.16),
+      transparent 28%
+    ),
+    #050509;
+}
+
+
+/* =====================================================
+   APP
+   ===================================================== */
+
+.app-shell {
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  position: relative;
+  overflow: hidden;
+}
+
+
+/* =====================================================
+   AMBIENT GLOW
+   ===================================================== */
+
+.ambient {
+  position: fixed;
+
+  width: 420px;
+  height: 420px;
+
+  border-radius: 50%;
+
+  pointer-events: none;
+
+  filter: blur(100px);
+
+  opacity: 0.22;
+}
+
+.ambient-one {
+  top: -180px;
+  right: -120px;
+
+  background: #7628ff;
+}
+
+.ambient-two {
+  bottom: -220px;
+  left: -160px;
+
+  background: #43148f;
+}
+
+
+/* =====================================================
+   SCANNER CARD
+   ===================================================== */
+
+.scanner-card {
+  width: min(100%, 440px);
+
+  padding: 22px;
+
+  position: relative;
+  z-index: 2;
+
+  border-radius: 28px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.018)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.09);
+
+  box-shadow:
+    0 30px 100px rgba(0, 0, 0, 0.55),
+    0 0 70px rgba(103, 43, 220, 0.08);
+
+  backdrop-filter: blur(25px);
+}
+
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 30px;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: rgba(255, 255, 255, 0.42);
+
+  font-size: 8px;
+  font-weight: 700;
+
+  letter-spacing: 0.18em;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+
+  background: #b66cff;
+
+  box-shadow:
+    0 0 10px #9b4dff;
+}
+
+.topbar h1 {
+  margin: 7px 0 2px;
+
+  font-size: 27px;
+  line-height: 1;
+
+  font-weight: 800;
+
+  letter-spacing: -0.055em;
+}
+
+.topbar p {
+  margin: 0;
+
+  color: rgba(255, 255, 255, 0.36);
+
+  font-size: 8px;
+
+  font-weight: 600;
+
+  letter-spacing: 0.18em;
+}
+
+
+/* =====================================================
+   ONLINE BADGE
+   ===================================================== */
+
+.online-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 8px 11px;
+
+  border-radius: 999px;
+
+  color: #d5b5ff;
+
+  border: 1px solid rgba(170, 91, 255, 0.32);
+
+  background: rgba(110, 43, 210, 0.09);
+
+  font-size: 8px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+
+/* =====================================================
+   HEADLINE
+   ===================================================== */
+
+.headline {
+  margin-bottom: 18px;
+
+  font-size: 31px;
+
+  font-weight: 500;
+
+  line-height: 1.02;
+
+  letter-spacing: -0.055em;
+}
+
+.headline span {
+  display: block;
+}
+
+.headline strong {
+  display: block;
+
+  color: rgba(255, 255, 255, 0.32);
+
+  font-weight: 700;
+}
+
+
+/* =====================================================
+   CAMERA
+   ===================================================== */
+
+.reader-frame {
+  width: 100%;
+
+  position: relative;
+
+  overflow: hidden;
+
+  border-radius: 22px;
+
+  background: #020204;
+
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
+
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.7),
+    0 15px 50px rgba(0, 0, 0, 0.3);
+
+  aspect-ratio: 1 / 1;
+}
+
+#reader {
+  width: 100%;
+  height: 100%;
+}
+
+#reader video {
+  width: 100% !important;
+  height: 100% !important;
+
+  object-fit: cover !important;
+}
+
+#reader img {
+  display: none;
+}
+
+#reader__scan_region {
+  min-height: 100% !important;
+}
+
+
+/* =====================================================
+   SCAN OVERLAY
+   ===================================================== */
+
+.scan-overlay {
+  position: absolute;
+
+  inset: 0;
+
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+
+  width: 32px;
+  height: 32px;
+
+  border-color: #d8c0ff;
+  border-style: solid;
+
+  filter:
+    drop-shadow(
+      0 0 7px rgba(174, 104, 255, 0.7)
+    );
+}
+
+.corner.tl {
+  top: 18px;
+  left: 18px;
+
+  border-width: 2px 0 0 2px;
+
+  border-radius: 8px 0 0 0;
+}
+
+.corner.tr {
+  top: 18px;
+  right: 18px;
+
+  border-width: 2px 2px 0 0;
+
+  border-radius: 0 8px 0 0;
+}
+
+.corner.bl {
+  bottom: 18px;
+  left: 18px;
+
+  border-width: 0 0 2px 2px;
+
+  border-radius: 0 0 0 8px;
+}
+
+.corner.br {
+  bottom: 18px;
+  right: 18px;
+
+  border-width: 0 2px 2px 0;
+
+  border-radius: 0 0 8px 0;
+}
+
+.scan-hint {
+  position: absolute;
+
+  bottom: 20px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 9px 13px;
+
+  border-radius: 999px;
+
+  color: white;
+
+  background: rgba(5, 5, 9, 0.76);
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  backdrop-filter: blur(10px);
+
+  font-size: 9px;
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+
+/* =====================================================
+   STATUS
+   ===================================================== */
+
+.status-panel,
+.attendee-result {
+  margin-top: 14px;
+}
+
+.status-panel {
+  min-height: 68px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 14px 16px;
+
+  border-radius: 17px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
   background: rgba(255, 255, 255, 0.035);
 }
 
-.attendee-result.approved {
-  border-color: rgba(74, 222, 128, 0.35);
+.status-panel svg {
+  flex-shrink: 0;
 }
 
-.attendee-result.already-used,
+.status-panel b {
+  display: block;
+
+  font-size: 10px;
+
+  letter-spacing: 0.06em;
+}
+
+.status-panel span {
+  display: block;
+
+  margin-top: 4px;
+
+  color: rgba(255, 255, 255, 0.42);
+
+  font-size: 9px;
+
+  line-height: 1.4;
+}
+
+.status-panel.idle {
+  border-color: rgba(177, 107, 255, 0.15);
+}
+
+.status-panel.idle svg {
+  color: #b678ff;
+}
+
+.status-panel.checking {
+  border-color: rgba(177, 107, 255, 0.28);
+}
+
+.status-panel.checking svg {
+  color: #c291ff;
+}
+
+.status-panel.camera-error,
+.status-panel.invalid,
+.status-panel.error {
+  border-color: rgba(255, 91, 115, 0.28);
+}
+
+.status-panel.camera-error svg,
+.status-panel.invalid svg,
+.status-panel.error svg {
+  color: #ff7189;
+}
+
+
+/* =====================================================
+   ATTENDEE RESULT
+   ===================================================== */
+
+.attendee-result {
+  padding: 15px;
+
+  border-radius: 18px;
+
+  border: 1px solid rgba(255, 255, 255, 0.09);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.02)
+    );
+}
+
+.attendee-result.approved {
+  border-color: rgba(112, 255, 188, 0.32);
+
+  box-shadow:
+    0 0 35px rgba(73, 220, 151, 0.06);
+}
+
+.attendee-result.already-used {
+  border-color: rgba(255, 181, 84, 0.3);
+}
+
 .attendee-result.not-approved,
 .attendee-result.invalid {
-  border-color: rgba(248, 113, 113, 0.3);
+  border-color: rgba(255, 91, 115, 0.3);
 }
 
 .result-title {
   display: flex;
   align-items: flex-start;
+
   gap: 11px;
+
   margin-bottom: 14px;
+}
+
+.result-title svg {
+  flex-shrink: 0;
+}
+
+.approved .result-title svg {
+  color: #71ffbb;
+}
+
+.already-used .result-title svg {
+  color: #ffc06a;
 }
 
 .result-title b {
   display: block;
-  font-size: 13px;
-  letter-spacing: 0.05em;
+
+  font-size: 12px;
+
+  letter-spacing: 0.055em;
 }
 
 .result-title span {
   display: block;
-  margin-top: 3px;
-  font-size: 11px;
-  opacity: 0.55;
+
+  margin-top: 4px;
+
+  color: rgba(255, 255, 255, 0.43);
+
+  font-size: 9px;
+
   line-height: 1.4;
 }
 
+
+/* =====================================================
+   DETAILS
+   ===================================================== */
+
 .attendee-details {
   display: grid;
+
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+
+  gap: 7px;
 }
 
 .detail-item {
   min-width: 0;
-  padding: 10px;
+
+  padding: 11px;
+
   border-radius: 11px;
+
   background: rgba(255, 255, 255, 0.035);
+
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .detail-item small {
   display: block;
-  margin-bottom: 4px;
-  font-size: 8px;
-  letter-spacing: 0.12em;
-  opacity: 0.45;
+
+  margin-bottom: 5px;
+
+  color: rgba(255, 255, 255, 0.34);
+
+  font-size: 7px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.13em;
 }
 
 .detail-item strong {
   display: block;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
+
   white-space: nowrap;
-  font-size: 11px;
+
+  font-size: 10px;
+
   font-weight: 600;
 }
 
-@media (max-width: 480px) {
+
+/* =====================================================
+   FOOTER
+   ===================================================== */
+
+footer {
+  display: flex;
+  justify-content: space-between;
+
+  margin-top: 18px;
+
+  color: rgba(255, 255, 255, 0.22);
+
+  font-size: 7px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.16em;
+}
+
+
+/* =====================================================
+   ANIMATION
+   ===================================================== */
+
+.spin {
+  animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 520px) {
+
+  .app-shell {
+    padding: 10px;
+  }
+
+  .scanner-card {
+    width: 100%;
+
+    padding: 17px;
+
+    border-radius: 23px;
+  }
+
+  .topbar {
+    margin-bottom: 24px;
+  }
+
+  .topbar h1 {
+    font-size: 24px;
+  }
+
+  .headline {
+    font-size: 28px;
+  }
+
+  .reader-frame {
+    border-radius: 19px;
+  }
 
   .attendee-details {
     grid-template-columns: 1fr;
