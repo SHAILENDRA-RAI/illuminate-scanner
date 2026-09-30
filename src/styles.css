@@ -663,3 +663,29 @@ footer {
   }
 
 }
+
+/* CAMERA FEED FIX */
+#reader {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  border: 0 !important;
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+#reader > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#reader video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  object-fit: cover !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
