@@ -1435,7 +1435,7 @@ const verifyTicket = (decodedText) => {
 
     iframe.src =
       APPS_SCRIPT_URL +
-      '?action=checkin' +
+      '?action=ping' +
       '&mode=iframe' +
       '&t=' +
       encodeURIComponent(token) +
