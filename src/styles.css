@@ -689,3 +689,66 @@ footer {
   visibility: visible !important;
   opacity: 1 !important;
 }
+
+/* ==================================================
+   MOBILE CAMERA BUTTON FIX
+   ================================================== */
+
+.scan-overlay {
+  pointer-events: none !important;
+}
+
+.camera-start-button {
+  pointer-events: auto !important;
+
+  position: absolute !important;
+  z-index: 50 !important;
+
+  left: 50% !important;
+  top: 50% !important;
+
+  transform: translate(-50%, -50%) !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 9px !important;
+
+  min-width: 170px !important;
+  height: 48px !important;
+
+  padding: 0 22px !important;
+
+  border: 1px solid rgba(180, 120, 255, 0.55) !important;
+  border-radius: 999px !important;
+
+  background: rgba(15, 10, 25, 0.92) !important;
+
+  color: #ffffff !important;
+
+  font-family: 'Montserrat', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+
+  box-shadow:
+    0 0 30px rgba(140, 70, 255, 0.18),
+    inset 0 0 20px rgba(255, 255, 255, 0.03) !important;
+}
+
+.camera-start-button svg {
+  flex-shrink: 0 !important;
+}
+
+.camera-start-button:active {
+  transform: translate(-50%, -50%) scale(0.96) !important;
+}
+
+.camera-start-button:hover {
+  border-color: rgba(200, 150, 255, 0.9) !important;
+  background: rgba(30, 18, 45, 0.96) !important;
+}
