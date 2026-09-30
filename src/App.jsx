@@ -21,7 +21,6 @@ import {
 const APPS_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbzymqTuKzj1J6yPV5xX_uqJScBL1MtOPjDUtm9iFNfe8P-43skdx48OteGdZ80Ss_zm7Q/exec';
 
-
 const RESULT_RESET_MS = 3500;
 
 
@@ -30,18 +29,13 @@ const RESULT_RESET_MS = 3500;
    ================================================== */
 
 function App() {
+  const scannerRef = useRef(null);
+  const processingRef = useRef(false);
+  const startingRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  const scannerRef =
-    useRef(null);
-
-  const processingRef =
-    useRef(false);
-
-  const [status, setStatus] =
-    useState('starting');
-
-  const [result, setResult] =
-    useState(null);
+  const [status, setStatus] = useState('starting');
+  const [result, setResult] = useState(null);
 
 
   /* ==================================================
@@ -49,134 +43,80 @@ function App() {
      ================================================== */
 
   useEffect(() => {
-
-    let mounted = true;
+    mountedRef.current = true;
 
     let scanner = null;
 
-
     async function startCamera() {
+      if (startingRef.current) {
+        return;
+      }
+
+      startingRef.current = true;
 
       try {
+        setStatus('starting');
+        setResult(null);
+
+        /* ----------------------------------------------
+           HTTPS CHECK
+           ---------------------------------------------- */
 
         if (!window.isSecureContext) {
-
           throw new Error(
-            'Camera requires a secure HTTPS connection.'
+            'Camera requires HTTPS. Open the scanner using the GitHub Pages HTTPS URL.'
           );
         }
 
 
-        setStatus('starting');
-
-
-        const cameras =
-          await Html5Qrcode.getCameras();
-
+        /* ----------------------------------------------
+           CHECK CAMERA API
+           ---------------------------------------------- */
 
         if (
-          !cameras ||
-          cameras.length === 0
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
         ) {
-
           throw new Error(
-            'No camera was found on this device.'
+            'Camera access is not supported by this browser.'
           );
         }
 
 
-        console.log(
-          'Available cameras:',
-          cameras
-        );
+        /* ----------------------------------------------
+           CREATE SCANNER
+           ---------------------------------------------- */
+
+        scanner = new Html5Qrcode('reader', {
+          verbose: false,
+        });
+
+        scannerRef.current = scanner;
 
 
-        /*
-         * Prefer rear camera.
-         */
-
-        let selectedCamera =
-          cameras.find(
-            (camera) => {
-
-              const label =
-                (
-                  camera.label || ''
-                ).toLowerCase();
-
-
-              return (
-                label.includes('back') ||
-                label.includes('rear') ||
-                label.includes('environment') ||
-                label.includes('main')
-              );
-            }
-          );
-
-
-        /*
-         * Fallback.
-         */
-
-        if (!selectedCamera) {
-
-          selectedCamera =
-            cameras[
-              cameras.length - 1
-            ];
-        }
-
-
-        console.log(
-          'Selected camera:',
-          selectedCamera
-        );
-
-
-        if (!mounted) {
-          return;
-        }
-
-
-        scanner =
-          new Html5Qrcode(
-            'reader'
-          );
-
-
-        scannerRef.current =
-          scanner;
-
+        /* ----------------------------------------------
+           START REAR CAMERA
+           ---------------------------------------------- */
 
         await scanner.start(
 
-          selectedCamera.id,
+          {
+            facingMode: 'environment',
+          },
 
           {
-
             fps: 15,
 
-            qrbox:
-              function (
-                width,
-                height
-              ) {
+            qrbox: function (width, height) {
+              const size = Math.floor(
+                Math.min(width, height) * 0.72
+              );
 
-                const size =
-                  Math.floor(
-                    Math.min(
-                      width,
-                      height
-                    ) * 0.72
-                  );
-
-
-                return {
-                  width: size,
-                  height: size,
-                };
-              },
+              return {
+                width: Math.max(size, 180),
+                height: Math.max(size, 180),
+              };
+            },
 
             aspectRatio: 1.0,
 
@@ -189,13 +129,19 @@ function App() {
 
           handleScan,
 
-          () => {}
+          () => {
+            /* QR frame not detected - normal */
+          }
         );
 
 
-        if (mounted) {
+        /* ----------------------------------------------
+           CAMERA SUCCESS
+           ---------------------------------------------- */
 
+        if (mountedRef.current) {
           setStatus('idle');
+          setResult(null);
         }
 
       } catch (error) {
@@ -205,26 +151,45 @@ function App() {
           error
         );
 
-
-        if (!mounted) {
+        if (!mountedRef.current) {
           return;
         }
 
+        let message =
+          error?.message ||
+          'Unable to start the camera.';
 
-        setStatus(
-          'camera-error'
-        );
+        if (
+          error?.name === 'NotAllowedError' ||
+          message.toLowerCase().includes('permission')
+        ) {
+          message =
+            'Camera permission was denied. Allow camera access in your browser settings and reload this page.';
+        }
 
+        if (
+          error?.name === 'NotFoundError'
+        ) {
+          message =
+            'No camera was found on this device.';
+        }
+
+        if (
+          error?.name === 'NotReadableError'
+        ) {
+          message =
+            'The camera is being used by another app. Close other camera apps and try again.';
+        }
+
+        setStatus('camera-error');
 
         setResult({
-
-          message:
-            'CAMERA ERROR',
-
-          detail:
-            error?.message ||
-            'Unable to start the camera.',
+          message: 'CAMERA ERROR',
+          detail: message,
         });
+
+      } finally {
+        startingRef.current = false;
       }
     }
 
@@ -232,24 +197,25 @@ function App() {
     startCamera();
 
 
+    /* ----------------------------------------------
+       CLEANUP
+       ---------------------------------------------- */
+
     return () => {
-
-      mounted = false;
-
+      mountedRef.current = false;
 
       if (scanner) {
-
         scanner
           .stop()
           .catch(() => {})
           .finally(() => {
-
             scanner
               .clear()
               .catch(() => {});
-
           });
       }
+
+      scannerRef.current = null;
     };
 
   }, []);
@@ -259,76 +225,83 @@ function App() {
      QR DETECTED
      ================================================== */
 
-  async function handleScan(
-    decodedText
-  ) {
+  async function handleScan(decodedText) {
 
-    if (
-      processingRef.current
-    ) {
+    if (processingRef.current) {
       return;
     }
-
 
     if (!decodedText) {
       return;
     }
-
 
     console.log(
       'ILLUMINATE QR:',
       decodedText
     );
 
+    processingRef.current = true;
 
-    processingRef.current =
-      true;
-
-
-    setStatus(
-      'checking'
-    );
-
+    setStatus('checking');
 
     setResult({
-
-      message:
-        'VERIFYING TICKET',
-
-      detail:
-        'Checking registration...',
+      message: 'VERIFYING TICKET',
+      detail: 'Checking registration...',
     });
 
 
-    const response =
-      await verifyTicket(
-        decodedText
-      );
+    try {
 
+      const response =
+        await verifyTicket(decodedText);
 
-    setResult(
-      response
-    );
+      if (!mountedRef.current) {
+        return;
+      }
 
+      setResult(response);
+      setStatus(response.status);
 
-    setStatus(
-      response.status
-    );
+      window.setTimeout(() => {
 
-
-    window.setTimeout(
-      () => {
+        if (!mountedRef.current) {
+          return;
+        }
 
         setResult(null);
-
         setStatus('idle');
+        processingRef.current = false;
 
-        processingRef.current =
-          false;
+      }, RESULT_RESET_MS);
 
-      },
-      RESULT_RESET_MS
-    );
+    } catch (error) {
+
+      console.error(
+        'CHECK-IN ERROR:',
+        error
+      );
+
+      setResult({
+        status: 'error',
+        message: 'CONNECTION ERROR',
+        detail:
+          'Could not connect to the check-in server.',
+      });
+
+      setStatus('error');
+
+      window.setTimeout(() => {
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setResult(null);
+        setStatus('idle');
+        processingRef.current = false;
+
+      }, RESULT_RESET_MS);
+    }
   }
 
 
@@ -337,11 +310,9 @@ function App() {
      ================================================== */
 
   return (
-
     <main className="app-shell">
 
       <div className="ambient ambient-one" />
-
       <div className="ambient ambient-two" />
 
 
@@ -377,9 +348,7 @@ function App() {
 
           <div className="online-badge">
 
-            <ShieldCheck
-              size={15}
-            />
+            <ShieldCheck size={15} />
 
             SCANNER ONLINE
 
@@ -407,17 +376,22 @@ function App() {
 
         <div className="reader-frame">
 
-          <div id="reader" />
+          <div
+            id="reader"
+            style={{
+              width: '100%',
+              height: '100%',
+              minHeight: '100%',
+              background: '#000',
+            }}
+          />
 
 
           <div className="scan-overlay">
 
             <div className="corner tl" />
-
             <div className="corner tr" />
-
             <div className="corner bl" />
-
             <div className="corner br" />
 
 
@@ -425,9 +399,7 @@ function App() {
 
               <div className="scan-hint">
 
-                <Camera
-                  size={16}
-                />
+                <Camera size={16} />
 
                 Align ticket QR inside
                 the frame
@@ -479,9 +451,7 @@ function ResultPanel({
   result,
 }) {
 
-  if (
-    status === 'starting'
-  ) {
+  if (status === 'starting') {
 
     return (
 
@@ -499,7 +469,7 @@ function ResultPanel({
           </b>
 
           <span>
-            Accessing device camera...
+            Allow camera access to scan tickets.
           </span>
 
         </div>
@@ -509,22 +479,18 @@ function ResultPanel({
   }
 
 
-  if (
-    status === 'camera-error'
-  ) {
+  if (status === 'camera-error') {
 
     return (
 
       <div className="status-panel camera-error">
 
-        <XCircle
-          size={24}
-        />
+        <XCircle size={24} />
 
         <div>
 
           <b>
-            CAMERA ERROR
+            CAMERA ACCESS REQUIRED
           </b>
 
           <span>
@@ -538,17 +504,13 @@ function ResultPanel({
   }
 
 
-  if (
-    status === 'idle'
-  ) {
+  if (status === 'idle') {
 
     return (
 
       <div className="status-panel idle">
 
-        <TicketCheck
-          size={22}
-        />
+        <TicketCheck size={22} />
 
         <div>
 
@@ -567,9 +529,7 @@ function ResultPanel({
   }
 
 
-  if (
-    status === 'checking'
-  ) {
+  if (status === 'checking') {
 
     return (
 
@@ -597,13 +557,11 @@ function ResultPanel({
   }
 
 
-  /*
-   * Result with attendee information.
-   */
+  /* ----------------------------------------------
+     ATTENDEE RESULT
+     ---------------------------------------------- */
 
-  if (
-    result?.attendee
-  ) {
+  if (result?.attendee) {
 
     return (
 
@@ -615,15 +573,11 @@ function ResultPanel({
 
           {status === 'approved' ? (
 
-            <CheckCircle2
-              size={27}
-            />
+            <CheckCircle2 size={27} />
 
           ) : (
 
-            <XCircle
-              size={27}
-            />
+            <XCircle size={27} />
 
           )}
 
@@ -644,7 +598,6 @@ function ResultPanel({
 
 
         <div className="attendee-details">
-
 
           <Detail
             label="NAME"
@@ -677,7 +630,6 @@ function ResultPanel({
             }
           />
 
-
         </div>
 
       </div>
@@ -685,9 +637,9 @@ function ResultPanel({
   }
 
 
-  /*
-   * Invalid / server error / event closed.
-   */
+  /* ----------------------------------------------
+     OTHER RESULT
+     ---------------------------------------------- */
 
   return (
 
@@ -695,9 +647,7 @@ function ResultPanel({
       className={`status-panel ${status}`}
     >
 
-      <XCircle
-        size={24}
-      />
+      <XCircle size={24} />
 
       <div>
 
@@ -748,404 +698,352 @@ function Detail({
    APPS SCRIPT CHECK-IN
    ================================================== */
 
-function verifyTicket(
-  decodedText
-) {
+function verifyTicket(decodedText) {
 
-  return new Promise(
-    (resolve) => {
+  return new Promise((resolve) => {
 
-      let token = '';
+    let token = '';
 
 
-      /*
-       * Extract token from QR URL.
-       */
+    /* ----------------------------------------------
+       EXTRACT TOKEN
+       ---------------------------------------------- */
+
+    try {
+
+      const url =
+        new URL(decodedText);
+
+      token =
+        url.searchParams.get('t') || '';
+
+    } catch {
+
+      resolve({
+
+        status: 'invalid',
+
+        message: 'INVALID QR',
+
+        detail:
+          'QR format is not valid.',
+
+      });
+
+      return;
+    }
+
+
+    if (!token) {
+
+      resolve({
+
+        status: 'invalid',
+
+        message: 'INVALID QR',
+
+        detail:
+          'No ticket token found.',
+
+      });
+
+      return;
+    }
+
+
+    /* ----------------------------------------------
+       JSONP
+       ---------------------------------------------- */
+
+    const callbackName =
+      'illuminateCheckIn_' +
+      Date.now() +
+      '_' +
+      Math.floor(
+        Math.random() * 100000
+      );
+
+
+    const script =
+      document.createElement('script');
+
+
+    let finished = false;
+
+
+    const cleanup = () => {
+
+      if (script.parentNode) {
+
+        script.parentNode.removeChild(
+          script
+        );
+      }
 
       try {
 
-        const url =
-          new URL(
-            decodedText
-          );
+        delete window[
+          callbackName
+        ];
+
+      } catch {}
+
+    };
 
 
-        token =
-          url.searchParams.get(
-            't'
-          ) || '';
-
-      } catch {
-
-        resolve({
-
-          status: 'invalid',
-
-          message:
-            'INVALID QR',
-
-          detail:
-            'QR format is not valid.',
-        });
-
-        return;
-      }
-
-
-      if (!token) {
-
-        resolve({
-
-          status: 'invalid',
-
-          message:
-            'INVALID QR',
-
-          detail:
-            'No ticket token found.',
-        });
-
-        return;
-      }
-
-
-      /*
-       * JSONP callback.
-       */
-
-      const callbackName =
-        'illuminateCheckIn_' +
-        Date.now() +
-        '_' +
-        Math.floor(
-          Math.random() *
-          100000
-        );
-
-
-      const script =
-        document.createElement(
-          'script'
-        );
-
-
-      let finished =
-        false;
-
-
-      const cleanup =
-        () => {
-
-          if (
-            script.parentNode
-          ) {
-
-            script.parentNode
-              .removeChild(
-                script
-              );
-          }
-
-
-          try {
-
-            delete window[
-              callbackName
-            ];
-
-          } catch {}
-
-        };
-
-
-      const timeout =
-        window.setTimeout(
-          () => {
-
-            if (finished) {
-              return;
-            }
-
-
-            finished = true;
-
-
-            cleanup();
-
-
-            resolve({
-
-              status:
-                'error',
-
-              message:
-                'SERVER TIMEOUT',
-
-              detail:
-                'Could not reach the check-in server.',
-            });
-
-          },
-          10000
-        );
-
-
-      window[
-        callbackName
-      ] = (data) => {
+    const timeout =
+      window.setTimeout(() => {
 
         if (finished) {
           return;
         }
 
-
         finished = true;
-
-
-        window.clearTimeout(
-          timeout
-        );
-
 
         cleanup();
 
-
-        /*
-         * SUCCESS
-         */
-
-        if (
-          data &&
-          data.status ===
-            'CHECKED_IN'
-        ) {
-
-          resolve({
-
-            status:
-              'approved',
-
-            message:
-              'ENTRY APPROVED',
-
-            detail:
-              data.message ||
-              'Check-in successful.',
-
-            attendee:
-              data,
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * DUPLICATE
-         */
-
-        if (
-          data &&
-          data.status ===
-            'ALREADY_USED'
-        ) {
-
-          resolve({
-
-            status:
-              'already-used',
-
-            message:
-              'ALREADY CHECKED IN',
-
-            detail:
-              data.message ||
-              'This ticket has already been used.',
-
-            attendee:
-              data,
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * PAYMENT NOT APPROVED
-         */
-
-        if (
-          data &&
-          data.status ===
-            'NOT_APPROVED'
-        ) {
-
-          resolve({
-
-            status:
-              'not-approved',
-
-            message:
-              'ENTRY NOT APPROVED',
-
-            detail:
-              data.message ||
-              'This ticket is not approved.',
-
-            attendee:
-              data,
-
-          });
-
-          return;
-        }
-
-
-        /*
-         * EVENT NOT OPEN
-         */
-
-        if (
-          data &&
-          data.status ===
-            'NOT_OPEN'
-        ) {
-
-          resolve({
-
-            status:
-              'not-open',
-
-            message:
-              'CHECK-IN NOT OPEN',
-
-            detail:
-              data.message ||
-              'Entry has not opened yet.',
-          });
-
-          return;
-        }
-
-
-        /*
-         * EVENT CLOSED
-         */
-
-        if (
-          data &&
-          data.status ===
-            'CLOSED'
-        ) {
-
-          resolve({
-
-            status:
-              'closed',
-
-            message:
-              'CHECK-IN CLOSED',
-
-            detail:
-              data.message ||
-              'Check-in is closed.',
-          });
-
-          return;
-        }
-
-
-        /*
-         * INVALID
-         */
-
         resolve({
 
-          status:
-            'invalid',
+          status: 'error',
 
           message:
-            'INVALID TICKET',
+            'SERVER TIMEOUT',
 
           detail:
-            data?.message ||
-            'This ticket could not be verified.',
-
-          attendee:
-            data,
+            'Could not reach the check-in server.',
 
         });
 
-      };
+      }, 10000);
 
 
-      /*
-       * Build API URL.
-       */
+    window[callbackName] = (data) => {
 
-      const apiUrl =
-        APPS_SCRIPT_URL +
-        '?action=checkin' +
-        '&t=' +
-        encodeURIComponent(
-          token
-        ) +
-        '&callback=' +
-        encodeURIComponent(
-          callbackName
-        );
+      if (finished) {
+        return;
+      }
 
+      finished = true;
 
-      script.src =
-        apiUrl;
-
-
-      script.async =
-        true;
-
-
-      script.onerror =
-        () => {
-
-          if (finished) {
-            return;
-          }
-
-
-          finished = true;
-
-
-          window.clearTimeout(
-            timeout
-          );
-
-
-          cleanup();
-
-
-          resolve({
-
-            status:
-              'error',
-
-            message:
-              'CONNECTION ERROR',
-
-            detail:
-              'Could not connect to the check-in server.',
-          });
-
-        };
-
-
-      document.body.appendChild(
-        script
+      window.clearTimeout(
+        timeout
       );
 
-    }
-  );
+      cleanup();
+
+
+      /* ------------------------------------------
+         APPROVED
+         ------------------------------------------ */
+
+      if (
+        data &&
+        data.status === 'CHECKED_IN'
+      ) {
+
+        resolve({
+
+          status: 'approved',
+
+          message:
+            'ENTRY APPROVED',
+
+          detail:
+            data.message ||
+            'Check-in successful.',
+
+          attendee: data,
+
+        });
+
+        return;
+      }
+
+
+      /* ------------------------------------------
+         ALREADY USED
+         ------------------------------------------ */
+
+      if (
+        data &&
+        data.status === 'ALREADY_USED'
+      ) {
+
+        resolve({
+
+          status: 'already-used',
+
+          message:
+            'ALREADY CHECKED IN',
+
+          detail:
+            data.message ||
+            'This ticket has already been used.',
+
+          attendee: data,
+
+        });
+
+        return;
+      }
+
+
+      /* ------------------------------------------
+         PAYMENT NOT APPROVED
+         ------------------------------------------ */
+
+      if (
+        data &&
+        data.status === 'NOT_APPROVED'
+      ) {
+
+        resolve({
+
+          status: 'not-approved',
+
+          message:
+            'ENTRY NOT APPROVED',
+
+          detail:
+            data.message ||
+            'This ticket is not approved.',
+
+          attendee: data,
+
+        });
+
+        return;
+      }
+
+
+      /* ------------------------------------------
+         EVENT NOT OPEN
+         ------------------------------------------ */
+
+      if (
+        data &&
+        data.status === 'NOT_OPEN'
+      ) {
+
+        resolve({
+
+          status: 'not-open',
+
+          message:
+            'CHECK-IN NOT OPEN',
+
+          detail:
+            data.message ||
+            'Entry has not opened yet.',
+
+        });
+
+        return;
+      }
+
+
+      /* ------------------------------------------
+         EVENT CLOSED
+         ------------------------------------------ */
+
+      if (
+        data &&
+        data.status === 'CLOSED'
+      ) {
+
+        resolve({
+
+          status: 'closed',
+
+          message:
+            'CHECK-IN CLOSED',
+
+          detail:
+            data.message ||
+            'Check-in is closed.',
+
+        });
+
+        return;
+      }
+
+
+      /* ------------------------------------------
+         INVALID
+         ------------------------------------------ */
+
+      resolve({
+
+        status: 'invalid',
+
+        message:
+          'INVALID TICKET',
+
+        detail:
+          data?.message ||
+          'This ticket could not be verified.',
+
+        attendee: data,
+
+      });
+
+    };
+
+
+    /* ----------------------------------------------
+       API URL
+       ---------------------------------------------- */
+
+    const apiUrl =
+      APPS_SCRIPT_URL +
+      '?action=checkin' +
+      '&t=' +
+      encodeURIComponent(token) +
+      '&callback=' +
+      encodeURIComponent(
+        callbackName
+      );
+
+
+    script.src = apiUrl;
+
+    script.async = true;
+
+
+    script.onerror = () => {
+
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+
+      window.clearTimeout(
+        timeout
+      );
+
+      cleanup();
+
+      resolve({
+
+        status: 'error',
+
+        message:
+          'CONNECTION ERROR',
+
+        detail:
+          'Could not connect to the check-in server.',
+
+      });
+
+    };
+
+
+    document.body.appendChild(
+      script
+    );
+
+  });
 }
 
 
