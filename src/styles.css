@@ -868,72 +868,110 @@ footer {
 
 
 /* =====================================================
-   MOBILE / FULL-SCREEN STAFF KIOSK
+   MOBILE / TABLET FULL-SCREEN KIOSK
    ===================================================== */
 
-@media (max-width: 520px) {
+@media (max-width: 1000px) {
 
   html,
   body,
   #root {
     width: 100%;
-    min-height: 100dvh;
+    min-height: 100%;
+    margin: 0;
   }
 
   body {
     overflow-x: hidden;
-    overflow-y: auto;
   }
 
   .app-shell {
-    width: 100%;
-
+    width: 100vw;
     min-height: 100dvh;
 
     padding:
-      env(safe-area-inset-top)
-      env(safe-area-inset-right)
-      env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
+      max(0px, env(safe-area-inset-top))
+      max(0px, env(safe-area-inset-right))
+      max(0px, env(safe-area-inset-bottom))
+      max(0px, env(safe-area-inset-left));
 
+    display: flex;
     align-items: stretch;
     justify-content: stretch;
   }
 
   .scanner-card {
-    width: 100%;
+    width: calc(100vw - 20px);
+    max-width: none;
+
     min-height: 100dvh;
 
-    padding:
-      14px
-      max(14px, env(safe-area-inset-right))
-      max(14px, env(safe-area-inset-bottom))
-      max(14px, env(safe-area-inset-left));
+    margin: 0 auto;
 
-    border-radius: 0;
+    padding: 14px;
 
-    border-left: 0;
-    border-right: 0;
-
-    display: flex;
-    flex-direction: column;
+    border-radius: 20px;
   }
 
   .topbar {
-    margin-bottom: 15px;
-    gap: 10px;
-  }
-
-  .eyebrow {
-    font-size: 8px;
+    margin-bottom: 16px;
   }
 
   .topbar h1 {
     font-size: 27px;
   }
 
-  .topbar p {
-    font-size: 8px;
+  .headline {
+    margin-bottom: 13px;
+    font-size: 25px;
+  }
+
+  .reader-frame {
+    width: 100%;
+
+    height: min(54dvh, 560px);
+    min-height: 330px;
+    max-height: 560px;
+
+    aspect-ratio: auto;
+
+    border-radius: 20px;
+  }
+
+  .attendee-details {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scan-next-button {
+    min-height: 52px;
+  }
+
+  footer {
+    margin-top: 15px;
+  }
+}
+
+
+/* =====================================================
+   SMALL PHONES
+   ===================================================== */
+
+@media (max-width: 520px) {
+
+  .scanner-card {
+    width: calc(100vw - 12px);
+
+    padding: 11px;
+
+    border-radius: 18px;
+  }
+
+  .topbar {
+    margin-bottom: 13px;
+  }
+
+  .topbar h1 {
+    font-size: 24px;
   }
 
   .online-badge {
@@ -942,99 +980,39 @@ footer {
   }
 
   .headline {
-    margin-bottom: 12px;
-    font-size: 24px;
-    line-height: 0.98;
+    font-size: 22px;
+    margin-bottom: 10px;
   }
 
-  /*
-   * Camera gets substantially more screen real estate
-   * on phones while preserving the existing camera feed.
-   */
   .reader-frame {
-    width: 100%;
-
     height: 52dvh;
+    min-height: 300px;
+    max-height: 500px;
 
-    min-height: 350px;
-    max-height: 520px;
-
-    aspect-ratio: auto;
-
-    flex-shrink: 0;
-
-    border-radius: 20px;
+    border-radius: 18px;
   }
 
   .corner {
-    width: 35px;
-    height: 35px;
+    width: 34px;
+    height: 34px;
   }
 
   .scan-hint {
-    bottom: 14px;
+    bottom: 12px;
 
-    max-width: calc(100% - 28px);
+    max-width: calc(100% - 24px);
 
-    padding: 10px 14px;
+    padding: 9px 12px;
 
-    font-size: 9px;
-
-    text-align: center;
+    font-size: 8px;
   }
 
-  .scan-line {
-    left: 10%;
-    right: 10%;
-  }
-
-  .status-panel,
-  .attendee-result {
-    margin-top: 11px;
-  }
-
-  .status-panel {
-    min-height: 64px;
-    padding: 13px 14px;
-    border-radius: 15px;
-  }
-
-  .status-panel b {
-    font-size: 10px;
-  }
-
-  .status-panel span {
-    font-size: 9px;
-  }
-
-  .attendee-result {
-    padding: 14px;
-    border-radius: 16px;
-  }
-
-  .result-title b {
-    font-size: 11px;
-  }
-
-  .result-title span {
-    font-size: 9px;
-  }
-
-  /*
-   * Keep attendee details compact enough to fit with the
-   * manual next-scan action on smaller displays.
-   */
   .attendee-details {
     grid-template-columns: 1fr 1fr;
-    gap: 7px;
   }
 
   .detail-item {
-    padding: 10px;
-  }
-
-  .detail-item small {
-    font-size: 7px;
+    padding: 9px;
   }
 
   .detail-item strong {
@@ -1043,46 +1021,39 @@ footer {
 
   .scan-next-button {
     min-height: 50px;
-    margin-top: 13px;
-    font-size: 10px;
   }
 
   footer {
-    margin-top: auto;
-    padding-top: 13px;
-    font-size: 7px;
+    font-size: 6px;
   }
 }
 
 
 /* =====================================================
-   SMALL-PHONE SAFETY
+   VERY SMALL PHONES
    ===================================================== */
 
 @media (max-width: 380px) {
 
   .scanner-card {
-    padding: 11px;
+    width: calc(100vw - 8px);
+    padding: 9px;
   }
 
   .topbar h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .headline {
-    font-size: 21px;
+    font-size: 20px;
   }
 
   .reader-frame {
     height: 49dvh;
-    min-height: 300px;
+    min-height: 280px;
   }
 
   .attendee-details {
     grid-template-columns: 1fr;
-  }
-
-  .scan-next-button {
-    min-height: 48px;
   }
 }
