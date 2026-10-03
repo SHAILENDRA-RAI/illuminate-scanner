@@ -1155,326 +1155,239 @@ function Detail({
    CHECK-IN REQUEST
    ================================================== */
 
-const verifyTicket = (decodedText) => {
+const verifyTicket = async (decodedText) => {
 
-  return new Promise((resolve, reject) => {
+  // ============================================
+  // EXTRACT TOKEN FROM QR
+  // ============================================
 
-    // --------------------------------------------
-    // EXTRACT TOKEN FROM QR
-    // --------------------------------------------
+  let token = '';
 
-    let token = '';
+  try {
 
-    try {
+    const url =
+      new URL(decodedText);
 
-      const url =
-        new URL(decodedText);
+    token =
+      url.searchParams.get('t') ||
+      '';
 
-      token =
-        url.searchParams.get('t') ||
-        '';
+  } catch {
 
-    } catch {
+    token =
+      String(decodedText || '').trim();
+  }
 
-      // If QR contains the token directly
-      token =
-        String(decodedText || '').trim();
 
-    }
+  if (!token) {
 
-    if (!token) {
+    return {
+      status: 'error',
 
-      resolve({
-        status: 'error',
-        message: 'INVALID QR',
+      message: 'INVALID QR',
+
+      detail:
+        'This QR code does not contain a valid ticket token.'
+    };
+  }
+
+
+  // ============================================
+  // CALL CLOUDFLARE WORKER
+  // ============================================
+
+  const response =
+    await fetch(
+      'https://illuminate-checkin.shailendrarai5588.workers.dev',
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type':
+            'application/x-www-form-urlencoded'
+        },
+
+        body:
+          new URLSearchParams({
+            t: token
+          }).toString()
+      }
+    );
+
+
+  if (!response.ok) {
+
+    throw new Error(
+      `Server returned HTTP ${response.status}`
+    );
+  }
+
+
+  const result =
+    await response.json();
+
+
+  console.log(
+    'ILLUMINATE CHECK-IN RESPONSE:',
+    result
+  );
+
+
+  // ============================================
+  // MAP SERVER RESPONSE TO UI
+  // ============================================
+
+  const attendee =
+    result.name ||
+    result.college ||
+    result.ticketId ||
+    result.checkinTime
+      ? {
+          name:
+            result.name || '',
+
+          college:
+            result.college || '',
+
+          ticketId:
+            result.ticketId || '',
+
+          checkinTime:
+            result.checkinTime || ''
+        }
+      : null;
+
+
+  switch (
+    result.status
+  ) {
+
+    case 'CHECKED_IN':
+
+      return {
+
+        status:
+          'approved',
+
+        message:
+          'ENTRY APPROVED',
+
         detail:
-          'This QR code does not contain a valid ticket token.'
-      });
+          result.message ||
+          'Ticket verified successfully.',
 
-      return;
-    }
+        attendee:
+          attendee
 
+      };
 
-    // --------------------------------------------
-    // CREATE HIDDEN IFRAME
-    // --------------------------------------------
 
-    const iframe =
-      document.createElement('iframe');
+    case 'ALREADY_USED':
 
-    iframe.style.position = 'fixed';
-    iframe.style.width = '1px';
-    iframe.style.height = '1px';
-    iframe.style.opacity = '0';
-    iframe.style.pointerEvents = 'none';
-    iframe.style.border = '0';
+      return {
 
+        status:
+          'already-used',
 
-    let finished = false;
+        message:
+          'ALREADY CHECKED IN',
 
+        detail:
+          result.message ||
+          'This ticket has already been used.',
 
-    const cleanup = () => {
+        attendee:
+          attendee
 
-      window.removeEventListener(
-        'message',
-        handleMessage
-      );
+      };
 
-      if (iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe);
-      }
-    };
 
+    case 'NOT_APPROVED':
 
-    const finish = (value) => {
+      return {
 
-      if (finished) {
-        return;
-      }
+        status:
+          'error',
 
-      finished = true;
+        message:
+          'PAYMENT NOT APPROVED',
 
-      cleanup();
+        detail:
+          result.message ||
+          'This ticket is not approved for entry.'
 
-      resolve(value);
-    };
+      };
 
 
-    // --------------------------------------------
-    // RECEIVE APPS SCRIPT RESPONSE
-    // --------------------------------------------
+    case 'NOT_OPEN':
 
-    const handleMessage = (event) => {
+      return {
 
-      if (
-        event.source !==
-        iframe.contentWindow
-      ) {
-        return;
-      }
+        status:
+          'warning',
 
+        message:
+          'ENTRY NOT OPEN',
 
-      const data =
-        event.data;
+        detail:
+          result.message ||
+          'Entry is not open yet.'
 
+      };
 
-      if (
-        !data ||
-        data.type !==
-          'ILLUMINATE_CHECKIN_RESULT'
-      ) {
-        return;
-      }
 
+    case 'CLOSED':
 
-      const response =
-        data.result || {};
+      return {
 
+        status:
+          'warning',
 
-      console.log(
-        'ILLUMINATE CHECK-IN RESPONSE:',
-        response
-      );
+        message:
+          'ENTRY CLOSED',
 
+        detail:
+          result.message ||
+          'Entry is currently closed.'
 
-      switch (
-        response.status
-      ) {
+      };
 
-        case 'CHECKED_IN':
 
-          finish({
+    case 'SERVER_ERROR':
 
-            status:
-              'approved',
+      return {
 
-            message:
-              'ENTRY APPROVED',
+        status:
+          'error',
 
-            detail:
-              response.message ||
-              'Ticket verified successfully.',
+        message:
+          'SERVER ERROR',
 
-            attendee:
-              response.attendee ||
-              null,
+        detail:
+          result.message ||
+          'Unable to verify the ticket.'
 
-          });
+      };
 
-          break;
 
+    case 'INVALID':
 
-        case 'ALREADY_USED':
+    default:
 
-          finish({
+      return {
 
-            status:
-              'already-used',
+        status:
+          'error',
 
-            message:
-              'ALREADY CHECKED IN',
+        message:
+          'INVALID TICKET',
 
-            detail:
-              response.message ||
-              'This ticket has already been used.',
+        detail:
+          result.message ||
+          'This QR code is invalid or does not exist.'
 
-            attendee:
-              response.attendee ||
-              null,
-
-          });
-
-          break;
-
-
-        case 'NOT_APPROVED':
-
-          finish({
-
-            status:
-              'error',
-
-            message:
-              'PAYMENT NOT APPROVED',
-
-            detail:
-              response.message ||
-              'This ticket has not been approved.',
-
-          });
-
-          break;
-
-
-        case 'NOT_OPEN':
-
-          finish({
-
-            status:
-              'warning',
-
-            message:
-              'ENTRY NOT OPEN',
-
-            detail:
-              response.message ||
-              'Entry is not open yet.',
-
-          });
-
-          break;
-
-
-        case 'CLOSED':
-
-          finish({
-
-            status:
-              'warning',
-
-            message:
-              'ENTRY CLOSED',
-
-            detail:
-              response.message ||
-              'Entry is currently closed.',
-
-          });
-
-          break;
-
-
-        case 'SERVER_ERROR':
-
-          finish({
-
-            status:
-              'error',
-
-            message:
-              'SERVER ERROR',
-
-            detail:
-              response.message ||
-              'Unable to verify the ticket.',
-
-          });
-
-          break;
-
-
-        default:
-
-          finish({
-
-            status:
-              'error',
-
-            message:
-              'INVALID TICKET',
-
-            detail:
-              response.message ||
-              'This QR code is invalid or does not exist.',
-
-          });
-
-      }
-    };
-
-
-    window.addEventListener(
-      'message',
-      handleMessage
-    );
-
-
-    // --------------------------------------------
-    // SEND REQUEST TO APPS SCRIPT
-    // --------------------------------------------
-
-    iframe.src =
-      APPS_SCRIPT_URL +
-      '?action=ping' +
-      '&mode=iframe' +
-      '&t=' +
-      encodeURIComponent(token) +
-      '&ts=' +
-      Date.now();
-
-
-    document.body.appendChild(
-      iframe
-    );
-
-
-    // --------------------------------------------
-    // TIMEOUT
-    // --------------------------------------------
-
-    window.setTimeout(() => {
-
-      if (!finished) {
-
-        finish({
-
-          status:
-            'error',
-
-          message:
-            'API TIMEOUT',
-
-          detail:
-            'The check-in server did not respond.',
-
-        });
-
-      }
-
-    }, 15000);
-
-  });
+      };
+  }
 };
-
 
 export default App;
