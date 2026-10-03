@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
+  ScanLine,
   ShieldCheck,
   TicketCheck,
   XCircle,
@@ -15,14 +16,13 @@ import {
 
 
 /* ==================================================
-   APPS SCRIPT API
+   CHECK-IN API
    ================================================== */
 
-const APPS_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbzymqTuKzj1J6yPV5xX_uqJScBL1MtOPjDUtm9iFNfe8P-43skdx48OteGdZ80Ss_zm7Q/exec';
-
-
-const RESULT_RESET_MS = 3500;
+/*
+   The scanner talks to the Cloudflare Worker.
+   The Worker securely bridges requests to Apps Script.
+   ================================================== */
 
 
 /* ==================================================
@@ -52,6 +52,25 @@ function App() {
 
 
   /* ==================================================
+     MANUAL NEXT SCAN
+     ================================================== */
+
+  function prepareNextScan() {
+
+    processingRef.current =
+      false;
+
+    setResult(
+      null
+    );
+
+    setStatus(
+      'idle'
+    );
+  }
+
+
+  /* ==================================================
      START CAMERA
      ================================================== */
 
@@ -76,6 +95,9 @@ function App() {
 
 
     try {
+
+      processingRef.current =
+        false;
 
       setStatus(
         'starting'
@@ -504,33 +526,10 @@ function App() {
         response.status
       );
 
-
-      window.setTimeout(
-        () => {
-
-          if (
-            !mountedRef.current
-          ) {
-            return;
-          }
-
-
-          setResult(
-            null
-          );
-
-
-          setStatus(
-            'idle'
-          );
-
-
-          processingRef.current =
-            false;
-
-        },
-        RESULT_RESET_MS
-      );
+      /*
+       * Keep the result visible and keep the scanner
+       * locked until staff explicitly taps SCAN NEXT QR.
+       */
 
 
     } catch (
@@ -561,33 +560,10 @@ function App() {
         'error'
       );
 
-
-      window.setTimeout(
-        () => {
-
-          if (
-            !mountedRef.current
-          ) {
-            return;
-          }
-
-
-          setResult(
-            null
-          );
-
-
-          setStatus(
-            'idle'
-          );
-
-
-          processingRef.current =
-            false;
-
-        },
-        RESULT_RESET_MS
-      );
+      /*
+       * Keep the error visible until staff explicitly
+       * taps SCAN NEXT QR.
+       */
     }
   }
 
@@ -720,6 +696,15 @@ function App() {
 
 
             {status ===
+              'idle' && (
+              <div
+                className="scan-line"
+                aria-hidden="true"
+              />
+            )}
+
+
+            {status ===
               'camera-off' && (
 
               <button
@@ -791,6 +776,7 @@ function App() {
         <ResultPanel
           status={status}
           result={result}
+          onNextScan={prepareNextScan}
         />
 
 
@@ -823,6 +809,7 @@ function App() {
 function ResultPanel({
   status,
   result,
+  onNextScan,
 }) {
 
   if (
@@ -1079,6 +1066,11 @@ function ResultPanel({
 
         </div>
 
+
+        <NextScanButton
+          onClick={onNextScan}
+        />
+
       </div>
 
     );
@@ -1113,7 +1105,40 @@ function ResultPanel({
 
       </div>
 
+
+      <NextScanButton
+        onClick={onNextScan}
+      />
+
     </div>
+
+  );
+}
+
+
+/* ==================================================
+   NEXT SCAN BUTTON
+   ================================================== */
+
+function NextScanButton({
+  onClick,
+}) {
+
+  return (
+
+    <button
+      className="scan-next-button"
+      type="button"
+      onClick={onClick}
+    >
+
+      <ScanLine
+        size={17}
+      />
+
+      SCAN NEXT QR
+
+    </button>
 
   );
 }
