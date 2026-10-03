@@ -624,46 +624,6 @@ footer {
 }
 
 
-/* =====================================================
-   MOBILE
-   ===================================================== */
-
-@media (max-width: 520px) {
-
-  .app-shell {
-    padding: 10px;
-  }
-
-  .scanner-card {
-    width: 100%;
-
-    padding: 17px;
-
-    border-radius: 23px;
-  }
-
-  .topbar {
-    margin-bottom: 24px;
-  }
-
-  .topbar h1 {
-    font-size: 24px;
-  }
-
-  .headline {
-    font-size: 28px;
-  }
-
-  .reader-frame {
-    border-radius: 19px;
-  }
-
-  .attendee-details {
-    grid-template-columns: 1fr;
-  }
-
-}
-
 /* CAMERA FEED FIX */
 #reader {
   width: 100% !important;
@@ -753,6 +713,7 @@ footer {
   background: rgba(30, 18, 45, 0.96) !important;
 }
 
+
 /* =====================================================
    REAL-TIME CHECK-IN KIOSK
    ===================================================== */
@@ -761,8 +722,8 @@ footer {
 .scan-line {
   position: absolute;
 
-  left: 12%;
-  right: 12%;
+  left: 10%;
+  right: 10%;
 
   top: 50%;
 
@@ -790,7 +751,7 @@ footer {
   0%,
   100% {
     transform: translateY(-105px);
-    opacity: 0.25;
+    opacity: 0.2;
   }
 
   50% {
@@ -804,35 +765,32 @@ footer {
 .scan-next-button {
   width: 100%;
 
-  margin-top: 14px;
+  min-height: 48px;
 
-  min-height: 50px;
+  margin-top: 12px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  gap: 9px;
+  gap: 8px;
 
   border: 1px solid rgba(190, 125, 255, 0.55);
-
-  border-radius: 14px;
+  border-radius: 13px;
 
   background:
     linear-gradient(
       135deg,
-      rgba(133, 53, 255, 0.95),
-      rgba(91, 28, 185, 0.95)
+      rgba(133, 53, 255, 0.96),
+      rgba(91, 28, 185, 0.96)
     );
 
   color: #ffffff;
 
   font-family: 'Montserrat', sans-serif;
-
   font-size: 10px;
   font-weight: 800;
-
-  letter-spacing: 0.12em;
+  letter-spacing: 0.11em;
 
   cursor: pointer;
 
@@ -840,35 +798,34 @@ footer {
   -webkit-tap-highlight-color: transparent;
 
   box-shadow:
-    0 10px 30px rgba(112, 52, 220, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    0 8px 24px rgba(112, 52, 220, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 
   transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease;
-}
-
-.scan-next-button:hover {
-  border-color: rgba(220, 185, 255, 0.9);
-
-  box-shadow:
-    0 12px 35px rgba(112, 52, 220, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.scan-next-button:active {
-  transform: scale(0.98);
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
 }
 
 .scan-next-button svg {
   flex-shrink: 0;
 }
 
+.scan-next-button:hover {
+  border-color: rgba(220, 185, 255, 0.9);
+
+  box-shadow:
+    0 10px 28px rgba(112, 52, 220, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.scan-next-button:active {
+  transform: scale(0.985);
+}
+
 
 /* =====================================================
-   MOBILE / TABLET FULL-SCREEN KIOSK
+   MOBILE / STAFF KIOSK
    ===================================================== */
 
 @media (max-width: 1000px) {
@@ -886,68 +843,207 @@ footer {
   }
 
   .app-shell {
-    width: 100vw;
+    width: 100%;
     min-height: 100dvh;
 
     padding:
-      max(0px, env(safe-area-inset-top))
-      max(0px, env(safe-area-inset-right))
-      max(0px, env(safe-area-inset-bottom))
-      max(0px, env(safe-area-inset-left));
+      max(7px, env(safe-area-inset-top))
+      max(7px, env(safe-area-inset-right))
+      max(7px, env(safe-area-inset-bottom))
+      max(7px, env(safe-area-inset-left));
 
-    display: flex;
-    align-items: stretch;
-    justify-content: stretch;
+    align-items: flex-start;
+    justify-content: center;
   }
 
+  /*
+   * Important:
+   * Do NOT make the card 100dvh tall.
+   * The old full-height card created the huge empty
+   * area visible in the screenshots.
+   */
   .scanner-card {
-    width: calc(100vw - 20px);
-    max-width: none;
+    width: min(calc(100vw - 14px), 720px);
+    max-width: 720px;
 
-    min-height: 100dvh;
+    min-height: 0;
+    height: auto;
 
     margin: 0 auto;
 
-    padding: 14px;
+    padding: 13px;
 
     border-radius: 20px;
   }
 
   .topbar {
-    margin-bottom: 16px;
+    margin-bottom: 13px;
+    gap: 10px;
+  }
+
+  .eyebrow {
+    font-size: 7px;
+    letter-spacing: 0.16em;
   }
 
   .topbar h1 {
-    font-size: 27px;
+    margin-top: 6px;
+    font-size: 25px;
+  }
+
+  .topbar p {
+    font-size: 7px;
+    letter-spacing: 0.14em;
+  }
+
+  .online-badge {
+    padding: 7px 9px;
+    font-size: 7px;
   }
 
   .headline {
-    margin-bottom: 13px;
-    font-size: 25px;
+    margin-bottom: 11px;
+    font-size: 23px;
+    line-height: 0.98;
   }
 
   .reader-frame {
     width: 100%;
 
-    height: min(54dvh, 560px);
-    min-height: 330px;
-    max-height: 560px;
+    /*
+     * Keep the camera large enough for reliable scanning,
+     * but avoid dominating the entire mobile screen.
+     */
+    height: min(47dvh, 500px);
+    min-height: 300px;
+    max-height: 500px;
 
     aspect-ratio: auto;
 
-    border-radius: 20px;
+    border-radius: 18px;
+  }
+
+  .corner {
+    width: 34px;
+    height: 34px;
+  }
+
+  .corner.tl {
+    top: 14px;
+    left: 14px;
+  }
+
+  .corner.tr {
+    top: 14px;
+    right: 14px;
+  }
+
+  .corner.bl {
+    bottom: 14px;
+    left: 14px;
+  }
+
+  .corner.br {
+    bottom: 14px;
+    right: 14px;
+  }
+
+  .scan-hint {
+    left: 50%;
+    bottom: 12px;
+
+    max-width: calc(100% - 24px);
+
+    padding: 8px 11px;
+
+    font-size: 8px;
+  }
+
+  .scan-line {
+    left: 10%;
+    right: 10%;
+  }
+
+  .status-panel,
+  .attendee-result {
+    margin-top: 10px;
+  }
+
+  .status-panel {
+    min-height: 58px;
+    padding: 11px 13px;
+    gap: 10px;
+
+    border-radius: 14px;
+  }
+
+  .status-panel svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .status-panel b {
+    font-size: 9px;
+  }
+
+  .status-panel span {
+    margin-top: 3px;
+    font-size: 8px;
+  }
+
+  .attendee-result {
+    padding: 12px;
+    border-radius: 15px;
+  }
+
+  .result-title {
+    gap: 9px;
+    margin-bottom: 10px;
+  }
+
+  .result-title svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .result-title b {
+    font-size: 10px;
+  }
+
+  .result-title span {
+    margin-top: 3px;
+    font-size: 8px;
   }
 
   .attendee-details {
     grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .detail-item {
+    padding: 9px;
+    border-radius: 10px;
+  }
+
+  .detail-item small {
+    margin-bottom: 4px;
+    font-size: 6px;
+  }
+
+  .detail-item strong {
+    font-size: 8px;
   }
 
   .scan-next-button {
-    min-height: 52px;
+    min-height: 47px;
+    margin-top: 10px;
+    border-radius: 12px;
+    font-size: 9px;
   }
 
   footer {
-    margin-top: 15px;
+    margin-top: 11px;
+    font-size: 6px;
   }
 }
 
@@ -958,53 +1054,65 @@ footer {
 
 @media (max-width: 520px) {
 
+  .app-shell {
+    padding:
+      max(6px, env(safe-area-inset-top))
+      max(6px, env(safe-area-inset-right))
+      max(6px, env(safe-area-inset-bottom))
+      max(6px, env(safe-area-inset-left));
+  }
+
   .scanner-card {
     width: calc(100vw - 12px);
+    padding: 10px;
 
-    padding: 11px;
-
-    border-radius: 18px;
+    border-radius: 17px;
   }
 
   .topbar {
-    margin-bottom: 13px;
+    margin-bottom: 11px;
   }
 
   .topbar h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .online-badge {
-    padding: 7px 9px;
-    font-size: 7px;
+    padding: 6px 8px;
+    font-size: 6px;
   }
 
   .headline {
-    font-size: 22px;
-    margin-bottom: 10px;
+    font-size: 20px;
+    margin-bottom: 9px;
   }
 
   .reader-frame {
-    height: 52dvh;
-    min-height: 300px;
-    max-height: 500px;
+    height: min(44dvh, 420px);
+    min-height: 285px;
+    max-height: 420px;
 
-    border-radius: 18px;
+    border-radius: 16px;
   }
 
   .corner {
-    width: 34px;
-    height: 34px;
+    width: 31px;
+    height: 31px;
   }
 
   .scan-hint {
-    bottom: 12px;
+    bottom: 10px;
+    padding: 7px 10px;
+    font-size: 7px;
+  }
 
-    max-width: calc(100% - 24px);
+  .status-panel {
+    min-height: 55px;
+    padding: 10px 11px;
+  }
 
-    padding: 9px 12px;
-
-    font-size: 8px;
+  .attendee-result {
+    padding: 11px;
   }
 
   .attendee-details {
@@ -1012,19 +1120,17 @@ footer {
   }
 
   .detail-item {
-    padding: 9px;
-  }
-
-  .detail-item strong {
-    font-size: 9px;
+    padding: 8px;
   }
 
   .scan-next-button {
-    min-height: 50px;
+    min-height: 46px;
+    margin-top: 9px;
+    font-size: 8px;
   }
 
   footer {
-    font-size: 6px;
+    margin-top: 9px;
   }
 }
 
@@ -1036,24 +1142,27 @@ footer {
 @media (max-width: 380px) {
 
   .scanner-card {
-    width: calc(100vw - 8px);
     padding: 9px;
   }
 
   .topbar h1 {
-    font-size: 22px;
+    font-size: 21px;
   }
 
   .headline {
-    font-size: 20px;
+    font-size: 19px;
   }
 
   .reader-frame {
-    height: 49dvh;
-    min-height: 280px;
+    height: 42dvh;
+    min-height: 265px;
   }
 
   .attendee-details {
     grid-template-columns: 1fr;
+  }
+
+  .scan-next-button {
+    min-height: 45px;
   }
 }
